@@ -2,7 +2,7 @@ import { SiteShell, PageHeader } from "@/components/site/SiteShell";
 import { ShieldCheck, Search, Award, Trophy, Star, Sparkles, ArrowRight, Check, Copy, Wallet } from "lucide-react";
 import { useState } from "react";
 import certificate3d from "@/assets/certificate-3d.png";
-import { useWalletConnection, useStudentCertificates, useTotalSupply } from "@/hooks/useLurnaContracts";
+import { useWalletConnection, useStudentCertificates } from "@/hooks/useLurnaContracts";
 
 interface CertSearch {
   module?: string;
@@ -39,6 +39,8 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const { data: myCerts, isLoading: certsLoading, isError: certsError } = useStudentCertificates(isConnected ? walletAddress : null);
 
   /* ── Certificate preview from quiz result ── */
   if (certData) {
@@ -99,8 +101,6 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
   }
 
   /* ── Normal view (no cert params) ── */
-  const { data: myCerts, isLoading: certsLoading, isError: certsError } = useStudentCertificates(isConnected ? walletAddress : null);
-
   return (
     <SiteShell>
       <PageHeader

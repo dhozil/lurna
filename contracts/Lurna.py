@@ -11,23 +11,33 @@ def _clean_json(text: str) -> str:
     return text.strip()
 
 
-def _extract_json_array(text: str) -> list:
-    text = _clean_json(text)
-    try:
-        parsed = json.loads(text)
-        if isinstance(parsed, list):
-            return parsed
-    except (json.JSONDecodeError, ValueError):
-        pass
-    match = regex_mod.search(r"\[[\s\S]*\]", text)
-    if match:
+def _parse_ai_scores(raw: any, expected_count: int) -> list | None:
+    """Extract list of {score: N} from AI response. Returns None on failure."""
+    if isinstance(raw, list):
+        if all(isinstance(x, dict) and "score" in x for x in raw):
+            return raw
+        if all(isinstance(x, (int, float)) for x in raw):
+            return [{"score": int(x)} for x in raw]
+        return None
+    if isinstance(raw, dict):
+        for v in raw.values():
+            if isinstance(v, list):
+                return _parse_ai_scores(v, expected_count)
+        return None
+    if isinstance(raw, str):
+        text = _clean_json(raw)
         try:
-            parsed = json.loads(match.group(0))
-            if isinstance(parsed, list):
-                return parsed
+            return _parse_ai_scores(json.loads(text), expected_count)
         except (json.JSONDecodeError, ValueError):
             pass
-    return []
+        match = regex_mod.search(r"\[[\s\S]*\]", text)
+        if match:
+            try:
+                return _parse_ai_scores(json.loads(match.group(0)), expected_count)
+            except (json.JSONDecodeError, ValueError):
+                pass
+        return None
+    return None
 
 
 class Lurna(gl.Contract):
@@ -312,40 +322,42 @@ class Lurna(gl.Contract):
         lines = []
         for i, q in enumerate(questions_list):
             sa = str(q.get("student_answer", "")).strip()
+            ca = str(q.get("correct_answer", "")).strip()
             lines.append(
                 f"Q{i+1}: {q.get('question', '')}\n"
-                f"Correct: {q.get('correct_answer', '')}\n"
+                f"Correct: {ca}\n"
                 f"Student: {'(no answer)' if not sa else sa}\n"
             )
         prompt = (
-            "You are grading a quiz. For EACH question, determine if the student's answer is correct.\n\n"
-            f"Module context: {summary}\n\n"
+            "Grade this multiple-choice quiz. Compare student vs correct answer.\n\n"
+            f"Context: {summary}\n\n"
             + "\n".join(lines) +
             "\nRules:\n"
-            "- If Student is '(no answer)', score is 0\n"
-            "- If Student matches or is equivalent to Correct, score is 100\n"
-            "- Otherwise, score is 0\n"
-            "Reply ONLY with valid JSON array: [{\"score\": 100}, {\"score\": 0}, ...]"
+            "- student equals correct → score 100\n"
+            "- student is '(no answer)' → score 0\n"
+            "- otherwise → score 0\n"
+            "\nReturn ONLY a JSON array, no other text:\n"
+            '[{"score": 100}, {"score": 0}]'
         )
 
         def leader_fn() -> list:
             raw = gl.nondet.exec_prompt(prompt)
-            if isinstance(raw, list):
-                return raw
-            if isinstance(raw, dict):
-                for v in raw.values():
-                    if isinstance(v, list):
-                        return v
-            if isinstance(raw, str):
-                parsed = _extract_json_array(raw)
-                if parsed:
-                    return parsed
-            return [{"score": 0}] * num_q
+            return _parse_ai_scores(raw, num_q)
 
         def validator_fn(leader_res) -> bool:
             return isinstance(leader_res, gl.vm.Return)
 
-        return json.dumps(gl.vm.run_nondet_unsafe(leader_fn, validator_fn))
+        ai_result = gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
+
+        if isinstance(ai_result, list) and len(ai_result) == num_q:
+            return json.dumps(ai_result)
+
+        fallback = []
+        for q in questions_list:
+            sa = str(q.get("student_answer", "")).strip()
+            ca = str(q.get("correct_answer", "")).strip()
+            fallback.append({"score": 100 if sa and sa == ca else 0})
+        return json.dumps(fallback)
 
     # ───────── display name ─────────
 
