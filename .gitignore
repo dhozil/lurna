@@ -27,6 +27,10 @@ dist-ssr
 bun.lock
 bunfig.toml
 
+# Cloudflare / Wrangler
+.wrangler/
+.dev.vars
+
 # Environment files
 .env
 .env.local

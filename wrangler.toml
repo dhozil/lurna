@@ -1,0 +1,8 @@
+# Cloudflare Pages
+name = "lurna"
+compatibility_date = "2026-07-02"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".output/public"
+
+[build]
+command = "npm run build"
