@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { getAllModules, getModuleById } from "@/data/all-data";
 import laptopImg from "@/assets/laptop.png";
-import { useWalletConnection, useDisplayName, useSetDisplayName } from "@/hooks/useLurnaContracts";
+import { useWalletConnection, useDisplayName, useSetDisplayName, useStudentBestScores, useStudentCertificates } from "@/hooks/useLurnaContracts";
 import { getBestScores, getLastModule } from "@/lib/quiz-utils";
 import { useState, useEffect } from "react";
 
@@ -17,26 +17,32 @@ export default function DashboardPage() {
 
 function Dashboard() {
   const allMods = getAllModules();
+  const { address, isConnected, connect, isConnecting } = useWalletConnection();
+  const { data: displayName } = useDisplayName(isConnected ? address : null);
+  const { data: chainScores } = useStudentBestScores(isConnected ? address : null);
+  const { data: chainCerts } = useStudentCertificates(isConnected ? address : null);
+
   const [bestScores, setBestScores] = useState<Record<string, any>>({});
   const [lastId, setLastId] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setBestScores(getBestScores());
     setLastId(getLastModule());
-    setMounted(true);
   }, []);
 
-  const bestArr = Object.entries(bestScores).map(([moduleId, data]) => ({ moduleId, ...data }));
-  const lastMod = lastId ? getModuleById(lastId) : null;
-  const completedCount = bestArr.length;
-  const { address, isConnected, connect, isConnecting } = useWalletConnection();
-  const { data: displayName } = useDisplayName(isConnected ? address : null);
+  const localArr = Object.entries(bestScores).map(([moduleId, data]) => ({ moduleId, ...data }));
+  const chainArr = chainScores ? Object.entries(chainScores).map(([moduleId, data]) => ({ moduleId, ...data })) : [];
 
+  const bestArr = isConnected && chainArr.length > 0 ? chainArr : localArr;
+  const lastMod = lastId ? getModuleById(lastId) : null;
+
+  const completedCount = bestArr.length;
   const avgScore = bestArr.length
-    ? Math.round(bestArr.reduce((s, r) => s + r.pct, 0) / bestArr.length)
+    ? Math.round(bestArr.reduce((s, r) => s + r.pct || r.percentage, 0) / bestArr.length)
     : 0;
-  const passedCount = bestArr.filter((r) => r.grade !== "F").length;
+  const passedCount = isConnected && chainCerts
+    ? chainCerts.length
+    : bestArr.filter((r) => r.grade !== "F").length;
 
   return (
     <div className="mx-auto max-w-[90rem] px-5 py-12 lg:px-8">
@@ -184,7 +190,8 @@ function Dashboard() {
                 {bestArr.slice(0, 5).map((r) => {
                   const entry = getModuleById(r.moduleId);
                   if (!entry) return null;
-                  const pct = Math.round((r.score / r.total) * 100);
+                  const total = r.total || r.max_score || 1;
+                  const pct = Math.round((r.score / total) * 100);
                   const passed = r.grade !== "F";
                   return (
                     <Link key={r.moduleId}
