@@ -8,14 +8,17 @@ const chainMap = {
   testnet: testnetBradbury,
 };
 
+const BRADBURY_RPC = "https://rpc-bradbury.genlayer.com";
+const BRADBURY_CONTRACT = "0xee338ecDA6ab8617e9F909ddF826043FC34A00ED";
+
 function getNetwork(): GenLayerNetwork {
   const v = import.meta.env.VITE_GENLAYER_NETWORK;
   if (v === "localnet" || v === "studionet" || v === "testnet") return v;
-  return "studionet";
+  return "testnet";
 }
 
 function getContractAddress(name: string): string {
-  return import.meta.env[`VITE_CONTRACT_${name}`] || "";
+  return import.meta.env[`VITE_CONTRACT_${name}`] || BRADBURY_CONTRACT;
 }
 
 export const genlayerConfig = {
@@ -25,6 +28,6 @@ export const genlayerConfig = {
     Lurna: getContractAddress("LURNA"),
   },
   get rpcUrl(): string {
-    return import.meta.env.VITE_GENLAYER_RPC_URL || "";
+    return import.meta.env.VITE_GENLAYER_RPC_URL || BRADBURY_RPC;
   },
 } as const;
