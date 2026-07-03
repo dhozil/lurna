@@ -647,6 +647,12 @@ function EssayModuleView({ module, trackTitle, categoryId, categoryLabel, catego
             <button onClick={onBack} className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold cursor-pointer hover:bg-card/80 transition">
               All Modules
             </button>
+            <Link to="/certificates"
+              search={{ module: module.title, score: String(result.score), total: String(result.total), grade: result.grade }}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft hover:scale-[1.02] transition-transform"
+            >
+              <Trophy className="h-4 w-4" /> View Certificate
+            </Link>
           </div>
         </div>
       </div>

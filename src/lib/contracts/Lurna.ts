@@ -148,6 +148,8 @@ class LurnaContract {
   }
 
   private async writeAndWait(fn: string, args: unknown[]): Promise<TransactionResult<{ txHash: string; receipt: Record<string, unknown> }>> {
+    const RETRYABLE = ["LEADER_TIMEOUT", "PENDING", "PROPOSING", "WAITING"];
+
     try {
       const eth = typeof window !== "undefined" ? (window as any).ethereum : undefined;
       if (!eth) return { success: false, error: "No wallet provider detected. Install MetaMask, Rabby, or another EIP-1193 wallet." };
@@ -167,22 +169,48 @@ class LurnaContract {
         value: 0n,
       }) as unknown as string;
 
-      const receipt = await (client as any).waitForTransactionReceipt({
-        hash: txHash,
-        status: TransactionStatus.ACCEPTED,
-        retries: 300,
-        interval: 2000,
-        fullTransaction: true,
-      }) as Record<string, unknown>;
+      const waitForAccept = async (): Promise<Record<string, unknown>> => {
+        for (let attempt = 0; attempt < 200; attempt++) {
+          try {
+            const receipt = await (client as any).waitForTransactionReceipt({
+              hash: txHash,
+              status: TransactionStatus.ACCEPTED,
+              retries: 1,
+              interval: 2000,
+              fullTransaction: true,
+              timeout: 5000,
+            }) as Record<string, unknown>;
+
+            const statusName = (receipt as any).statusName as string | undefined;
+            const txResultName = (receipt as any).txExecutionResultName as string | undefined;
+
+            if (statusName === "ACCEPTED") return receipt;
+
+            if (txResultName && RETRYABLE.includes(txResultName)) {
+              await new Promise((r) => setTimeout(r, 3000));
+              continue;
+            }
+
+            if (statusName && RETRYABLE.includes(statusName)) {
+              await new Promise((r) => setTimeout(r, 3000));
+              continue;
+            }
+          } catch {}
+          await new Promise((r) => setTimeout(r, 3000));
+        }
+        throw new Error("LEADER_TIMEOUT");
+      };
+
+      const receipt = await waitForAccept();
 
       const execResultName = (receipt as any).txExecutionResultName;
-      if (execResultName && ["FAIL", "VALIDATORS_TIMEOUT", "LEADER_TIMEOUT", "UNDETERMINED"].includes(execResultName)) {
+      if (execResultName && ["FAIL", "VALIDATORS_TIMEOUT", "UNDETERMINED"].includes(execResultName)) {
         return { success: false, error: parseGenLayerError(new Error(execResultName)) };
       }
 
-      const txStatusName = (receipt as any).statusName;
-      if (txStatusName && txStatusName !== "ACCEPTED") {
-        return { success: false, error: `Transaction still ${txStatusName}. Please wait and try again.` };
+      const consensusError = (receipt as any).consensus_data?.execution_error;
+      if (consensusError) {
+        return { success: false, error: `Execution error: ${consensusError}` };
       }
 
       return { success: true, data: { txHash, receipt } };

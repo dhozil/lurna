@@ -2,7 +2,6 @@
 
 from genlayer import *
 import json
-import re as regex_mod
 
 
 def _clean_json(text: str) -> str:
@@ -11,33 +10,46 @@ def _clean_json(text: str) -> str:
     return text.strip()
 
 
-def _parse_ai_scores(raw: any, expected_count: int) -> list | None:
-    """Extract list of {score: N} from AI response. Returns None on failure."""
-    if isinstance(raw, list):
-        if all(isinstance(x, dict) and "score" in x for x in raw):
-            return raw
-        if all(isinstance(x, (int, float)) for x in raw):
-            return [{"score": int(x)} for x in raw]
-        return None
-    if isinstance(raw, dict):
-        for v in raw.values():
-            if isinstance(v, list):
-                return _parse_ai_scores(v, expected_count)
-        return None
+def _parse_ai_scores(raw) -> list:
+    """Extract list of {score: N} from AI response. Returns [] on failure."""
     if isinstance(raw, str):
         text = _clean_json(raw)
         try:
-            return _parse_ai_scores(json.loads(text), expected_count)
-        except (json.JSONDecodeError, ValueError):
+            return _parse_ai_scores(json.loads(text))
+        except:
             pass
-        match = regex_mod.search(r"\[[\s\S]*\]", text)
-        if match:
+        start = text.find("[")
+        end = text.rfind("]")
+        if start != -1 and end != -1 and end > start:
             try:
-                return _parse_ai_scores(json.loads(match.group(0)), expected_count)
-            except (json.JSONDecodeError, ValueError):
+                return _parse_ai_scores(json.loads(text[start:end+1]))
+            except:
                 pass
-        return None
-    return None
+        return []
+
+    try:
+        n = len(raw)
+        if n == 0:
+            return []
+        item = raw[0]
+        if hasattr(item, "get"):
+            scores = []
+            for i in range(n):
+                scores.append({"score": int(raw[i].get("score", 0))})
+            return scores
+        if isinstance(item, (int, float)):
+            return [{"score": int(raw[i])} for i in range(n)]
+        return []
+    except:
+        pass
+
+    if hasattr(raw, "values"):
+        for v in raw.values():
+            result = _parse_ai_scores(v)
+            if result:
+                return result
+
+    return []
 
 
 class Lurna(gl.Contract):
@@ -216,7 +228,7 @@ class Lurna(gl.Contract):
         try:
             qs = json.loads(questions)
         except:
-            return json.dumps({"error": "Invalid questions JSON"})
+            return '{"error":"Invalid questions JSON"}'
 
         num_q = len(qs)
         total_score = u256(0)
@@ -224,21 +236,33 @@ class Lurna(gl.Contract):
         for q in qs:
             max_score += u256(int(q.get("points", 20)))
 
-        scores_data = json.loads(self._evaluate_all(module_summary, qs, num_q))
+        try:
+            scores_raw = self._evaluate_all(module_summary, qs, num_q)
+            scores_data = []
+            try:
+                parsed = json.loads(scores_raw)
+                n = len(parsed)
+                if n > 0 and hasattr(parsed[0], "get"):
+                    scores_data = parsed
+            except:
+                pass
 
-        for i in range(num_q):
-            q = qs[i]
-            q_pts = u256(int(q.get("points", 20)))
-            score_val = u256(int(scores_data[i].get("score", 0))) if i < len(scores_data) else u256(0)
-            total_score += (score_val * q_pts) // u256(100)
-            eval_id = self.total_evaluations + 1
-            self.evaluations[eval_id] = json.dumps({
-                "question": q.get("question", ""),
-                "student_answer": q.get("student_answer", ""),
-                "correct_answer": q.get("correct_answer", ""),
-                "score": int(score_val),
-            })
-            self.total_evaluations = eval_id
+            for i in range(num_q):
+                q = qs[i]
+                q_pts = u256(int(q.get("points", 20)))
+                sd = scores_data[i] if i < len(scores_data) else {}
+                sv = 0
+                if hasattr(sd, "get"):
+                    sv = int(sd.get("score", 0))
+                elif isinstance(sd, (int, float)):
+                    sv = int(sd)
+                score_val = u256(sv)
+                total_score += (score_val * q_pts) // u256(100)
+                eval_id = self.total_evaluations + 1
+                self.evaluations[eval_id] = '{"question":"' + str(q.get("question", "")) + '","student_answer":"' + str(q.get("student_answer", "")) + '","correct_answer":"' + str(q.get("correct_answer", "")) + '","score":' + str(sv) + '}'
+                self.total_evaluations = eval_id
+        except:
+            pass
 
         percentage = u256(0)
         if max_score > 0:
@@ -247,19 +271,8 @@ class Lurna(gl.Contract):
         passed = percentage >= 70
         attempt_id = self.total_attempts + 1
 
-        attempt = {
-            "attempt_id": int(attempt_id),
-            "student": student,
-            "module_id": module_id,
-            "category": category,
-            "course": course,
-            "score": int(total_score),
-            "max_score": int(max_score),
-            "percentage": int(percentage),
-            "passed": passed,
-            "timestamp": gl.message_raw["datetime"],
-        }
-        self.all_attempts[attempt_id] = json.dumps(attempt)
+        result = '{"attempt_id":' + str(int(attempt_id)) + ',"student":"' + student + '","module_id":"' + module_id + '","category":"' + category + '","course":"' + course + '","score":' + str(int(total_score)) + ',"max_score":' + str(int(max_score)) + ',"percentage":' + str(int(percentage)) + ',"passed":' + ("true" if passed else "false") + '}'
+        self.all_attempts[attempt_id] = result
 
         student_ids = json.loads(self.student_attempts.get(student, "[]"))
         student_ids.append(int(attempt_id))
@@ -276,7 +289,7 @@ class Lurna(gl.Contract):
         if module_id in scores:
             existing = scores[module_id]
             if int(percentage) <= existing.get("percentage", 0):
-                return json.dumps(attempt)
+                return result
             old_total -= u256(existing.get("percentage", 0))
 
         grade = self._grade_from_pct(percentage)
@@ -289,7 +302,6 @@ class Lurna(gl.Contract):
             "max_score": int(max_score),
             "passed": passed,
             "grade": grade,
-            "earned_at": gl.message_raw["datetime"],
         }
         self.best_scores[student] = json.dumps(scores)
 
@@ -302,27 +314,19 @@ class Lurna(gl.Contract):
         if passed:
             tier = self._tier_from_grade(grade)
             cert_id = self.total_supply + 1
-            meta = {
-                "student": student,
-                "category": category,
-                "course": course,
-                "score": int(total_score),
-                "grade": grade,
-                "tier": tier,
-                "timestamp": gl.message_raw["datetime"],
-                "attempt_id": int(attempt_id),
-            }
-            self.certificates[cert_id] = json.dumps(meta)
+            meta = '{"student":"' + student + '","category":"' + category + '","course":"' + course + '","score":' + str(int(total_score)) + ',"grade":"' + grade + '","tier":"' + tier + '","attempt_id":' + str(int(attempt_id)) + '}'
+            self.certificates[cert_id] = meta
             self.total_supply = cert_id
             cert_ids = json.loads(self.student_certs.get(student, "[]"))
             cert_ids.append(int(cert_id))
             self.student_certs[student] = json.dumps(cert_ids)
 
-        return json.dumps(attempt)
+        return result
 
-    def _evaluate_all(self, summary: str, questions_list: list, num_q: int) -> str:
+    def _evaluate_all(self, summary: str, questions_list, num_q: int) -> str:
         lines = []
-        for i, q in enumerate(questions_list):
+        for i in range(num_q):
+            q = questions_list[i]
             qtype = q.get("type", "mcq")
             sa = str(q.get("student_answer", "")).strip()
             ca = str(q.get("correct_answer", "")).strip()
@@ -338,10 +342,16 @@ class Lurna(gl.Contract):
                     f"Student: {'(no answer)' if not sa else sa}\n"
                 )
         prompt = (
-            "Grade this mixed quiz. Rules per question type:\n"
-            "- MCQ: if student_answer equals correct_answer → score 100, else 0\n"
-            "- Essay: evaluate quality, depth, and relevance → score 0-100\n"
-            "- Empty student_answer → score 0\n\n"
+            "Grade this mixed quiz.\n\n"
+            "RULES:\n"
+            "- MCQ: student_answer == correct_answer → score 100, else 0\n"
+            "- Essay: grade 0–100 based on rubric below\n\n"
+            "ESSAY RUBRIC:\n"
+            "  0–20: empty, off-topic, or gibberish\n"
+            "  21–50: vague attempt with some relevant points\n"
+            "  51–80: good answer with correct key concepts and reasonable depth\n"
+            "  81–100: excellent, comprehensive, insightful\n"
+            "Be generous: if the student made a sincere attempt with correct concepts, score 60+.\n\n"
             f"Context: {summary}\n\n"
             + "\n".join(lines) +
             "\nReturn ONLY a JSON array like [{\"score\": 100}, {\"score\": 0}, ...]"
@@ -349,18 +359,22 @@ class Lurna(gl.Contract):
 
         def leader_fn() -> list:
             raw = gl.nondet.exec_prompt(prompt)
-            return _parse_ai_scores(raw, num_q)
+            return _parse_ai_scores(raw)
 
         def validator_fn(leader_res) -> bool:
             return isinstance(leader_res, gl.vm.Return)
 
-        ai_result = gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
-
-        if isinstance(ai_result, list) and len(ai_result) == num_q:
-            return json.dumps(ai_result)
+        try:
+            ai_result = gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
+            n = len(ai_result)
+            if n == num_q:
+                return json.dumps(ai_result)
+        except:
+            pass
 
         fallback = []
-        for q in questions_list:
+        for i in range(num_q):
+            q = questions_list[i]
             qtype = q.get("type", "mcq")
             if qtype == "essay":
                 sa = str(q.get("student_answer", "")).strip()
