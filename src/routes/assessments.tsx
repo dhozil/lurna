@@ -234,7 +234,7 @@ function ModuleView({ module, trackTitle, categoryId, categoryLabel, categoryTin
         student: walletAddress,
         moduleId: module.id,
         category: categoryLabel,
-        course: trackTitle,
+        course: module.title,
         questionsJSON: JSON.stringify(newAnswersToQuestions(finalAnswers, questions)),
         pointsPerQuestion: questions[0]?.points || 0,
         moduleSummary: module.summary,
