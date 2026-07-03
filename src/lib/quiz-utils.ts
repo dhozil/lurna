@@ -1,4 +1,4 @@
-import type { Module, Question } from "@/data/all-data";
+import type { Module, Question, EssayQuestion } from "@/data/all-data";
 
 /* ─── Grading ─── */
 
@@ -19,6 +19,16 @@ export function newAnswersToQuestions(answers: Record<string, number>, questions
     question: q.question,
     student_answer: q.options[answers[q.id]] ?? "",
     correct_answer: q.options[q.correctIndex],
+  }));
+}
+
+export function newEssayQuestions(essayAnswers: Record<string, string>, questions: EssayQuestion[]) {
+  return questions.map((q) => ({
+    type: "essay",
+    question: q.question,
+    student_answer: essayAnswers[q.id] || "",
+    correct_answer: "",
+    points: q.points,
   }));
 }
 

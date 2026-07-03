@@ -219,14 +219,18 @@ class Lurna(gl.Contract):
             return json.dumps({"error": "Invalid questions JSON"})
 
         num_q = len(qs)
-        max_score = points_per_question * u256(num_q)
         total_score = u256(0)
+        max_score = u256(0)
+        for q in qs:
+            max_score += u256(int(q.get("points", 20)))
 
         scores_data = json.loads(self._evaluate_all(module_summary, qs, num_q))
 
         for i in range(num_q):
             q = qs[i]
+            q_pts = u256(int(q.get("points", 20)))
             score_val = u256(int(scores_data[i].get("score", 0))) if i < len(scores_data) else u256(0)
+            total_score += (score_val * q_pts) // u256(100)
             eval_id = self.total_evaluations + 1
             self.evaluations[eval_id] = json.dumps({
                 "question": q.get("question", ""),
@@ -235,8 +239,6 @@ class Lurna(gl.Contract):
                 "score": int(score_val),
             })
             self.total_evaluations = eval_id
-            if score_val == u256(100):
-                total_score += points_per_question
 
         percentage = u256(0)
         if max_score > 0:
@@ -321,23 +323,28 @@ class Lurna(gl.Contract):
     def _evaluate_all(self, summary: str, questions_list: list, num_q: int) -> str:
         lines = []
         for i, q in enumerate(questions_list):
+            qtype = q.get("type", "mcq")
             sa = str(q.get("student_answer", "")).strip()
             ca = str(q.get("correct_answer", "")).strip()
-            lines.append(
-                f"Q{i+1}: {q.get('question', '')}\n"
-                f"Correct: {ca}\n"
-                f"Student: {'(no answer)' if not sa else sa}\n"
-            )
+            if qtype == "essay":
+                lines.append(
+                    f"Q{i+1} (Essay): {q.get('question', '')}\n"
+                    f"Student: {'(no answer)' if not sa else sa}\n"
+                )
+            else:
+                lines.append(
+                    f"Q{i+1} (MCQ): {q.get('question', '')}\n"
+                    f"Correct: {ca}\n"
+                    f"Student: {'(no answer)' if not sa else sa}\n"
+                )
         prompt = (
-            "Grade this multiple-choice quiz. Compare student vs correct answer.\n\n"
+            "Grade this mixed quiz. Rules per question type:\n"
+            "- MCQ: if student_answer equals correct_answer → score 100, else 0\n"
+            "- Essay: evaluate quality, depth, and relevance → score 0-100\n"
+            "- Empty student_answer → score 0\n\n"
             f"Context: {summary}\n\n"
             + "\n".join(lines) +
-            "\nRules:\n"
-            "- student equals correct → score 100\n"
-            "- student is '(no answer)' → score 0\n"
-            "- otherwise → score 0\n"
-            "\nReturn ONLY a JSON array, no other text:\n"
-            '[{"score": 100}, {"score": 0}]'
+            "\nReturn ONLY a JSON array like [{\"score\": 100}, {\"score\": 0}, ...]"
         )
 
         def leader_fn() -> list:
@@ -354,9 +361,14 @@ class Lurna(gl.Contract):
 
         fallback = []
         for q in questions_list:
-            sa = str(q.get("student_answer", "")).strip()
-            ca = str(q.get("correct_answer", "")).strip()
-            fallback.append({"score": 100 if sa and sa == ca else 0})
+            qtype = q.get("type", "mcq")
+            if qtype == "essay":
+                sa = str(q.get("student_answer", "")).strip()
+                fallback.append({"score": 50 if sa else 0})
+            else:
+                sa = str(q.get("student_answer", "")).strip()
+                ca = str(q.get("correct_answer", "")).strip()
+                fallback.append({"score": 100 if sa and sa == ca else 0})
         return json.dumps(fallback)
 
     # ───────── display name ─────────

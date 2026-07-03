@@ -11,6 +11,7 @@ import {
 } from "./content";
 import type {
   Question,
+  EssayQuestion,
   Module,
   Track,
   CategoryMeta,
@@ -28,6 +29,7 @@ export {
 
 export type {
   Question,
+  EssayQuestion,
   Module,
   Track,
   CategoryMeta,

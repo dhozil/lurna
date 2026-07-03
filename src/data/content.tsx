@@ -17,11 +17,18 @@ export interface Question {
   points: number;
 }
 
+export interface EssayQuestion {
+  id: string;
+  question: string;
+  points: number;
+}
+
 export interface Module {
   id: string;
   title: string;
   summary: string;
-  quiz: Question[];
+  quiz?: Question[];            // MCQ questions (omitted for essay modules)
+  essayQuestions?: EssayQuestion[];  // essay questions (mutually exclusive with quiz)
 }
 
 export interface Track {
@@ -185,6 +192,7 @@ export const categoriesData: CategoryData[] = [
                   correctIndex: 1,
                   explanation: "Intelligent Contracts can process unstructured data like text, images, and PDFs natively — a capability traditional smart contracts lack.",
                 },
+
               ],
           },
           {
@@ -253,6 +261,7 @@ export const categoriesData: CategoryData[] = [
                   correctIndex: 1,
                   explanation: "When a supermajority of validators agrees, the result is accepted. This efficiency is what makes Optimistic Democracy fast while remaining secure.",
                 },
+
               ],
           },
           {
@@ -311,6 +320,7 @@ export const categoriesData: CategoryData[] = [
                   correctIndex: 1,
                   explanation: "Intelligent Contracts can maintain state across executions, allowing them to learn, adapt, and evolve over time — unlike traditional stateless smart contracts.",
                 },
+
               ],
           },
           {
@@ -379,7 +389,44 @@ export const categoriesData: CategoryData[] = [
                   correctIndex: 1,
                   explanation: "As AI agents increasingly transact autonomously, they need a trust layer to resolve disputes without human courts. GenLayer provides exactly that — programmable fairness at machine speed.",
                 },
+
               ],
+          },
+          {
+            id: "genlayer-fundamentals-essay-1",
+            title: "GenLayer Fundamentals — Essay 1",
+            summary: "Demonstrate your understanding through this AI-graded essay question. Write freely — depth and clarity matter more than length.",
+            essayQuestions: [
+              {
+                id: "genlayer-fundamentals-essay-1",
+                question: "Explain how GenLayer differs from traditional blockchains like Ethereum. Why is the ability to process subjective decisions and natural language a fundamental breakthrough?",
+                points: 100,
+              },
+            ],
+          },
+          {
+            id: "genlayer-fundamentals-essay-2",
+            title: "GenLayer Fundamentals — Essay 2",
+            summary: "Demonstrate your understanding through this AI-graded essay question. Write freely — depth and clarity matter more than length.",
+            essayQuestions: [
+              {
+                id: "genlayer-fundamentals-essay-2",
+                question: "Describe how Optimistic Democracy works step by step. How does using diverse AI models for validators improve consensus fairness and security?",
+                points: 100,
+              },
+            ],
+          },
+          {
+            id: "genlayer-fundamentals-essay-3",
+            title: "GenLayer Fundamentals — Essay 3",
+            summary: "Demonstrate your understanding through this AI-graded essay question. Write freely — depth and clarity matter more than length.",
+            essayQuestions: [
+              {
+                id: "genlayer-fundamentals-essay-3",
+                question: "What is the agentic economy and why does GenLayer's role as a 'synthetic jurisdiction' matter? Describe at least two real-world use cases that GenLayer enables.",
+                points: 100,
+              },
+            ],
           },
         ],
       },
@@ -404,6 +451,7 @@ export const categoriesData: CategoryData[] = [
               { id: "bc-q3", points: 20, question: "What was the first real-world application of blockchain technology?", options: ["Ethereum smart contracts", "Bitcoin cryptocurrency", "NFTs", "DeFi protocols"], correctIndex: 1, explanation: "Bitcoin, launched in 2009, was the first successful blockchain application — a peer-to-peer electronic cash system." },
               { id: "bc-q4", points: 20, question: "What does 'immutable' mean in the context of blockchain?", options: ["Data can be easily edited", "Once recorded, data cannot be altered without consensus", "Data is stored off-chain", "Data expires after a set time"], correctIndex: 1, explanation: "Immutability means that once a block is confirmed, altering it requires re-mining all subsequent blocks — practically impossible on a large network." },
               { id: "bc-q5", points: 20, question: "What is a node in a blockchain network?", options: ["A type of cryptocurrency", "A computer that maintains a copy of the blockchain", "A smart contract", "A wallet address"], correctIndex: 1, explanation: "Nodes are computers that store the full blockchain history and participate in transaction validation." },
+
             ],
           },
           {
@@ -416,6 +464,7 @@ export const categoriesData: CategoryData[] = [
               { id: "cm-q3", points: 20, question: "What is a key advantage of PoS over PoW?", options: ["Higher security", "Better energy efficiency", "Faster internet", "More decentralization"], correctIndex: 1, explanation: "PoS consumes significantly less energy than PoW because it doesn't require intensive computational work." },
               { id: "cm-q4", points: 20, question: "What does consensus in blockchain primarily prevent?", options: ["Slow transactions", "Double-spending", "High fees", "Network congestion"], correctIndex: 1, explanation: "Consensus ensures that no one can spend the same digital asset twice — the fundamental problem that blockchains solve." },
               { id: "cm-q5", points: 20, question: "Which consensus mechanism does GenLayer use?", options: ["Proof of Work", "Proof of Stake", "Optimistic Democracy", "Delegated Proof of Stake"], correctIndex: 2, explanation: "GenLayer uses Optimistic Democracy — a novel mechanism where diverse AI models independently verify execution results." },
+
             ],
           },
           {
@@ -428,6 +477,7 @@ export const categoriesData: CategoryData[] = [
               { id: "bt-q3", points: 20, question: "What happens when a block reaches its size limit?", options: ["The network slows down", "Transactions must wait for the next block", "The block splits in two", "Fees are refunded"], correctIndex: 1, explanation: "When a block is full, remaining transactions stay in the mempool and wait for inclusion in a future block." },
               { id: "bt-q4", points: 20, question: "What determines which transactions miners prioritize?", options: ["Transaction size", "Transaction fees (gas)", "Sender reputation", "Random selection"], correctIndex: 1, explanation: "Miners typically prioritize transactions with higher fees since they earn those fees as rewards." },
               { id: "bt-q5", points: 20, question: "What does block finality mean?", options: ["The block is encrypted", "The block cannot be reversed", "The block is empty", "The block is archived"], correctIndex: 1, explanation: "Finality means the block and its transactions are permanently confirmed and cannot be reversed." },
+
             ],
           },
           {
@@ -440,6 +490,43 @@ export const categoriesData: CategoryData[] = [
               { id: "buc-q3", points: 20, question: "What is tokenization in blockchain?", options: ["Creating passwords", "Representing real-world assets as digital tokens", "Encrypting data", "Mining cryptocurrency"], correctIndex: 1, explanation: "Tokenization converts rights to an asset (like real estate or art) into a digital token on the blockchain." },
               { id: "buc-q4", points: 20, question: "Which industry uses blockchain for drug traceability?", options: ["Automotive", "Pharmaceutical", "Entertainment", "Agriculture"], correctIndex: 1, explanation: "Pharmaceutical companies use blockchain to track drugs from manufacturer to patient, combating counterfeits." },
               { id: "buc-q5", points: 20, question: "What common problem do all blockchain use cases address?", options: ["Slow computers", "Lack of trust between parties", "High energy costs", "Data storage limits"], correctIndex: 1, explanation: "Blockchain excels in environments where participants don't fully trust each other — providing transparency and immutability without intermediaries." },
+
+            ],
+          },
+          {
+            id: "blockchain-fundamentals-essay-1",
+            title: "Blockchain Fundamentals — Essay 1",
+            summary: "Demonstrate your understanding through this AI-graded essay question. Write freely — depth and clarity matter more than length.",
+            essayQuestions: [
+              {
+                id: "blockchain-fundamentals-essay-1",
+                question: "Explain how blockchain achieves immutability through its cryptographic chain structure. What makes it practically impossible to alter historical data on a large distributed network?",
+                points: 100,
+              },
+            ],
+          },
+          {
+            id: "blockchain-fundamentals-essay-2",
+            title: "Blockchain Fundamentals — Essay 2",
+            summary: "Demonstrate your understanding through this AI-graded essay question. Write freely — depth and clarity matter more than length.",
+            essayQuestions: [
+              {
+                id: "blockchain-fundamentals-essay-2",
+                question: "Compare Proof of Work and Proof of Stake consensus mechanisms. What trade-offs do they make between security, energy efficiency, and decentralization?",
+                points: 100,
+              },
+            ],
+          },
+          {
+            id: "blockchain-fundamentals-essay-3",
+            title: "Blockchain Fundamentals — Essay 3",
+            summary: "Demonstrate your understanding through this AI-graded essay question. Write freely — depth and clarity matter more than length.",
+            essayQuestions: [
+              {
+                id: "blockchain-fundamentals-essay-3",
+                question: "Describe at least three real-world use cases of blockchain beyond cryptocurrency. What common problem does blockchain solve across all these applications?",
+                points: 100,
+              },
             ],
           },
         ],
@@ -465,6 +552,7 @@ export const categoriesData: CategoryData[] = [
               { id: "sc-q3", points: 20, question: "Once deployed, can a smart contract be modified?", options: ["Yes, anytime", "No — it's immutable by default", "Only by the creator", "After a community vote"], correctIndex: 1, explanation: "Smart contracts are immutable by default after deployment. Upgrade patterns like proxy contracts provide controlled modifiability." },
               { id: "sc-q4", points: 20, question: "What eliminates the need for intermediaries in smart contracts?", options: ["Legal agreements", "Self-executing code on blockchain", "Digital signatures", "Third-party audits"], correctIndex: 1, explanation: "The code itself enforces the contract terms automatically — no lawyer, bank, or escrow agent needed." },
               { id: "sc-q5", points: 20, question: "Can smart contracts interact with each other?", options: ["No, they are isolated", "Yes, through contract calls", "Only on the same network", "Only through oracles"], correctIndex: 1, explanation: "Smart contracts can call functions in other deployed contracts, enabling composability — a key feature of DeFi." },
+
             ],
           },
           {
@@ -477,6 +565,7 @@ export const categoriesData: CategoryData[] = [
               { id: "sol-q3", points: 20, question: "What is the purpose of a modifier in Solidity?", options: ["To change variable types", "To add reusable access control or validation", "To modify contract state", "To optimize gas"], correctIndex: 1, explanation: "Modifiers are reusable code blocks that can check conditions before a function executes — commonly used for access control like onlyOwner." },
               { id: "sol-q4", points: 20, question: "Which keyword makes a variable permanently stored on-chain?", options: ["memory", "storage", "calldata", "stack"], correctIndex: 1, explanation: "The storage keyword (or declaring at contract level without keyword) makes data persist on the blockchain permanently." },
               { id: "sol-q5", points: 20, question: "What does 'msg.sender' represent in Solidity?", options: ["The contract creator", "The caller of the current function", "The miner", "The transaction signer's address"], correctIndex: 1, explanation: "msg.sender is the address that called the current function — not necessarily the original transaction sender." },
+
             ],
           },
           {
@@ -489,6 +578,7 @@ export const categoriesData: CategoryData[] = [
               { id: "sec-q3", points: 20, question: "What is the minimum recommended security practice before launching a smart contract?", options: ["Peer review only", "At least one professional audit", "Social media announcement", "Whitepaper publication"], correctIndex: 1, explanation: "A professional security audit by a reputable firm is the industry minimum before deploying contracts with real value." },
               { id: "sec-q4", points: 20, question: "What is front-running in blockchain?", options: ["A type of race condition", "Someone observing a pending transaction and submitting their own first", "Deleting transaction history", "Running multiple nodes"], correctIndex: 1, explanation: "Front-running occurs when an attacker sees a pending transaction in the mempool and submits a similar transaction with higher gas to execute first." },
               { id: "sec-q5", points: 20, question: "Why should external calls be the last action in a function?", options: ["To save gas", "To prevent reentrancy and state inconsistency", "To improve readability", "To comply with Solidity syntax"], correctIndex: 1, explanation: "Making external calls after all state changes ensures that even if the call fails or triggers a reentrancy, the contract's state is already updated." },
+
             ],
           },
           {
@@ -501,6 +591,43 @@ export const categoriesData: CategoryData[] = [
               { id: "rwa-q3", points: 20, question: "How do parametric insurance contracts work?", options: ["Claims are manually reviewed", "Payouts trigger automatically when predefined conditions are met", "Only doctors can approve claims", "Claims require legal approval"], correctIndex: 1, explanation: "Parametric contracts automatically pay out when verifiable conditions occur (e.g., flight delay > 2 hours) — no claims process needed." },
               { id: "rwa-q4", points: 20, question: "What is composability in DeFi smart contracts?", options: ["Contracts can be written in any language", "Contracts can interact and build on each other like Lego blocks", "Contracts automatically merge", "Contracts cannot interact"], correctIndex: 1, explanation: "Composability allows DeFi protocols to integrate with each other — like using a DEX to swap tokens for a lending protocol deposit." },
               { id: "rwa-q5", points: 20, question: "Which standard is used for NFT smart contracts on Ethereum?", options: ["ERC-20", "ERC-721", "ERC-1155", "ERC-4337"], correctIndex: 1, explanation: "ERC-721 is the standard for non-fungible tokens, where each token is unique and cannot be exchanged 1:1 with another." },
+
+            ],
+          },
+          {
+            id: "smart-contract-fundamentals-essay-1",
+            title: "Smart Contract Development — Essay 1",
+            summary: "Demonstrate your understanding through this AI-graded essay question. Write freely — depth and clarity matter more than length.",
+            essayQuestions: [
+              {
+                id: "smart-contract-fundamentals-essay-1",
+                question: "Explain why immutability is both a strength and a challenge for smart contracts. What patterns have developers created to address the need for upgradeability while preserving trust?",
+                points: 100,
+              },
+            ],
+          },
+          {
+            id: "smart-contract-fundamentals-essay-2",
+            title: "Smart Contract Development — Essay 2",
+            summary: "Demonstrate your understanding through this AI-graded essay question. Write freely — depth and clarity matter more than length.",
+            essayQuestions: [
+              {
+                id: "smart-contract-fundamentals-essay-2",
+                question: "Describe the key features of the Solidity programming language. What are state variables, modifiers, and mappings, and how are they used in smart contract development?",
+                points: 100,
+              },
+            ],
+          },
+          {
+            id: "smart-contract-fundamentals-essay-3",
+            title: "Smart Contract Development — Essay 3",
+            summary: "Demonstrate your understanding through this AI-graded essay question. Write freely — depth and clarity matter more than length.",
+            essayQuestions: [
+              {
+                id: "smart-contract-fundamentals-essay-3",
+                question: "What are the most common smart contract security vulnerabilities? Explain the Checks-Effects-Interactions pattern and why it is essential for preventing reentrancy attacks.",
+                points: 100,
+              },
             ],
           },
         ],
@@ -526,6 +653,7 @@ export const categoriesData: CategoryData[] = [
               { id: "cr-q3", points: 20, question: "What is the primary purpose of Bitcoin?", options: ["Running smart contracts", "Peer-to-peer digital cash", "NFT trading", "Decentralized finance"], correctIndex: 1, explanation: "Bitcoin was created as a peer-to-peer electronic cash system — a decentralized alternative to traditional money." },
               { id: "cr-q4", points: 20, question: "What distinguishes a stablecoin from other cryptocurrencies?", options: ["Faster transactions", "Its value is pegged to a stable asset like USD", "It cannot be traded", "Higher volatility"], correctIndex: 1, explanation: "Stablecoins maintain a stable value by pegging to a reserve asset (like USD) or using algorithmic mechanisms." },
               { id: "cr-q5", points: 20, question: "What is a public key derived from?", options: ["Username", "Private key", "Email address", "Phone number"], correctIndex: 1, explanation: "A public key is mathematically derived from the private key and can be shared freely to receive funds." },
+
             ],
           },
           {
@@ -538,6 +666,7 @@ export const categoriesData: CategoryData[] = [
               { id: "wt-q3", points: 20, question: "What are gas fees in crypto transactions?", options: ["Fees paid to miners or validators for processing", "Subscription fees", "Exchange withdrawal fees", "Yearly membership costs"], correctIndex: 0, explanation: "Gas fees compensate network participants (miners/validators) for including and confirming your transaction." },
               { id: "wt-q4", points: 20, question: "What is a seed phrase?", options: ["A trading strategy", "A human-readable backup of your wallet's private keys", "A password for exchanges", "A transaction memo"], correctIndex: 1, explanation: "A seed phrase (12-24 words) encodes all your wallet's private keys and can restore access if you lose your device." },
               { id: "wt-q5", points: 20, question: "What is the difference between a custodial and non-custodial wallet?", options: ["Custodial: you control keys; Non-custodial: bank controls keys", "Custodial: provider controls keys; Non-custodial: you control keys", "Both are the same", "Custodial is faster"], correctIndex: 1, explanation: "In custodial wallets (like exchanges), the provider holds your keys. Non-custodial wallets give you full control of your private keys." },
+
             ],
           },
           {
@@ -550,6 +679,7 @@ export const categoriesData: CategoryData[] = [
               { id: "ss-q3", points: 20, question: "Where should you store large amounts of cryptocurrency?", options: ["Exchange wallet", "Hardware (cold) wallet", "Mobile wallet", "Paper notebook"], correctIndex: 1, explanation: "Hardware wallets provide the best security for long-term storage by keeping private keys completely offline." },
               { id: "ss-q4", points: 20, question: "What is SIM swapping?", options: ["Exchanging SIM cards", "An attacker tricks a carrier into transferring a phone number to their SIM", "A type of wallet", "A mining method"], correctIndex: 1, explanation: "SIM swapping lets attackers intercept SMS-based 2FA codes. Using authenticator apps or hardware keys is more secure." },
               { id: "ss-q5", points: 20, question: "What should you NEVER do with your seed phrase?", options: ["Write it down on paper", "Store it in a safe", "Enter it into any website or app", "Memorize it"], correctIndex: 2, explanation: "Never type your seed phrase into any website, app, or digital device — only enter it directly into a trusted wallet during recovery." },
+
             ],
           },
           {
@@ -562,6 +692,43 @@ export const categoriesData: CategoryData[] = [
               { id: "mt-q3", points: 20, question: "What is the main difference between CEX and DEX?", options: ["CEX is faster", "CEX requires KYC and holds custody; DEX is permissionless with self-custody", "DEX has more coins", "CEX is decentralized"], correctIndex: 1, explanation: "Centralized exchanges (CEX) require identity verification and hold your funds. Decentralized exchanges (DEX) let you trade directly from your wallet." },
               { id: "mt-q4", points: 20, question: "What does HODL mean in crypto slang?", options: ["A trading bot", "Hold On for Dear Life — long-term holding strategy", "A type of order", "High-frequency trading"], correctIndex: 1, explanation: "HODL originated from a typo for 'hold' and became the community term for long-term investment strategy." },
               { id: "mt-q5", points: 20, question: "What is liquidity in a trading market?", options: ["Total market cap", "How easily an asset can be bought/sold without price impact", "Number of traders", "Daily volume only"], correctIndex: 1, explanation: "High liquidity means large orders can be executed without significantly moving the price — essential for efficient trading." },
+
+            ],
+          },
+          {
+            id: "crypto-fundamentals-essay-1",
+            title: "Cryptocurrency Fundamentals — Essay 1",
+            summary: "Demonstrate your understanding through this AI-graded essay question. Write freely — depth and clarity matter more than length.",
+            essayQuestions: [
+              {
+                id: "crypto-fundamentals-essay-1",
+                question: "Explain what cryptocurrency is and how cryptography secures transactions. What distinguishes Bitcoin, utility tokens, governance tokens, and stablecoins from each other?",
+                points: 100,
+              },
+            ],
+          },
+          {
+            id: "crypto-fundamentals-essay-2",
+            title: "Cryptocurrency Fundamentals — Essay 2",
+            summary: "Demonstrate your understanding through this AI-graded essay question. Write freely — depth and clarity matter more than length.",
+            essayQuestions: [
+              {
+                id: "crypto-fundamentals-essay-2",
+                question: "Compare different types of cryptocurrency wallets (hardware, software, custodial, non-custodial). What are the security trade-offs of each and why does 'not your keys, not your coins' matter?",
+                points: 100,
+              },
+            ],
+          },
+          {
+            id: "crypto-fundamentals-essay-3",
+            title: "Cryptocurrency Fundamentals — Essay 3",
+            summary: "Demonstrate your understanding through this AI-graded essay question. Write freely — depth and clarity matter more than length.",
+            essayQuestions: [
+              {
+                id: "crypto-fundamentals-essay-3",
+                question: "What are the most important security practices for protecting cryptocurrency holdings? Describe common threats like phishing, SIM swapping, and the importance of self-custody.",
+                points: 100,
+              },
             ],
           },
         ],
