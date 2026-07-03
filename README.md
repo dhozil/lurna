@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="public/favicon.svg" width="40" height="40" style="vertical-align:middle;margin-right:8px" alt="Lurna">
+  <img src="public/favicon.svg" width="35" height="35" style="vertical-align:middle;margin-right:8px" alt="LURNA">
   Lurna
 </h1>
 
