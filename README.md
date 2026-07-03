@@ -4,7 +4,7 @@
 </h1>
 
 <p align="center">
-  <b>AI Consensus Learning Platform</b><br>
+  <b>Lurna is a decentralized learning platform on GenLayer that grades quizzes through multi-agent AI consensus. Each submission is evaluated by multiple AI validators (GPT, Claude, Llama, etc.) running inside GenLayer smart contracts — if supermajority agrees, the score is accepted on-chain.</b><br>
   Multi-agent quiz grading · On-chain NFT certificates · GenLayer
 </p>
 
