@@ -1,15 +1,5 @@
 <h1 align="center">
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="40" height="40" style="vertical-align:middle;margin-right:8px">
-    <defs>
-      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#7C3AED"/>
-        <stop offset="100%" stop-color="#5B21B6"/>
-      </linearGradient>
-    </defs>
-    <rect width="100" height="100" rx="22" fill="url(#bg)"/>
-    <path d="M50 18l7.73 15.65L75.5 37l-12.75 12.44 3.01 17.56L50 57.25 34.24 67l3.01-17.56L24.5 37l17.77-3.35z" fill="#fff"/>
-    <circle cx="80" cy="20" r="7" fill="#FBBF24"/>
-  </svg>
+  <img src="public/favicon.svg" width="40" height="40" style="vertical-align:middle;margin-right:8px" alt="Lurna">
   Lurna
 </h1>
 
