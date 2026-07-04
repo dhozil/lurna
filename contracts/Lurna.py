@@ -362,13 +362,51 @@ class Lurna(gl.Contract):
             return _parse_ai_scores(raw)
 
         def validator_fn(leader_res) -> bool:
-            return isinstance(leader_res, gl.vm.Return)
+            if not isinstance(leader_res, gl.vm.Return):
+                return False
+            leader_data = leader_res.calldata
+            try:
+                n = len(leader_data)
+            except:
+                return False
+            if n != num_q:
+                return False
+            try:
+                mine = leader_fn()
+            except:
+                return False
+            try:
+                mn = len(mine)
+            except:
+                return False
+            if mn != num_q:
+                return False
+            for i in range(num_q):
+                q = questions_list[i]
+                qtype = q.get("type", "mcq")
+                lv = int(leader_data[i].get("score", 0))
+                mv = int(mine[i].get("score", 0))
+                if qtype == "mcq":
+                    if lv != mv:
+                        return False
+                else:
+                    if abs(lv - mv) > 30:
+                        return False
+            return True
 
         try:
             ai_result = gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
-            n = len(ai_result)
+            try:
+                n = len(ai_result)
+            except:
+                n = 0
             if n == num_q:
-                return json.dumps(ai_result)
+                plain = []
+                for i in range(num_q):
+                    item = ai_result[i]
+                    sv = int(item.get("score", 0)) if hasattr(item, "get") else int(item)
+                    plain.append({"score": sv})
+                return json.dumps(plain)
         except:
             pass
 
