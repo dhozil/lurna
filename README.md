@@ -44,7 +44,7 @@ Deployed on **GenLayer Bradbury** testnet.
 | **Chain ID** | `4221` (`0x107d`) |
 | **RPC** | `https://rpc-bradbury.genlayer.com` |
 | **Explorer** | [explorer-bradbury.genlayer.com](https://explorer-bradbury.genlayer.com) |
-| **Contract** | `0x0a5Cbd1640eD47eCc7f0F21C60b2F4083E666181` |
+| **Contract** | `0x84Bd8c73869719059f946dED8175b9b56116F810` |
 | **Source** | `contracts/Lurna.py` |
 
 A single unified Python contract handles:
