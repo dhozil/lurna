@@ -96,13 +96,13 @@ class Lurna(gl.Contract):
             except:
                 scores = {}
             passed = 0
-            best_grade = "F"
-            best_val = 99
+            best_grade = "A"
+            best_val = 0
             for mod_id, s in scores.items():
                 if s.get("passed", False):
                     passed += 1
                 pct = s.get("percentage", 0)
-                if pct < best_val:
+                if pct > best_val:
                     best_val = pct
                     best_grade = s.get("grade", "F")
             entries.append({
@@ -210,7 +210,7 @@ class Lurna(gl.Contract):
         except:
             return '{"error":"AI evaluation failed"}'
 
-        pct = (total_score * u256(100)) // u256(num_q)
+        pct = (total_score * u256(100)) // u256(max_possible)
         passed = pct >= 70
         attempt_id = self.total_attempts + 1
 
