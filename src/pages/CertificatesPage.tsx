@@ -17,10 +17,10 @@ const tierColor: Record<string, string> = {
   Silver: "bg-gradient-to-br from-[oklch(0.93_0.01_280)] to-[oklch(0.78_0.02_280)] text-[oklch(0.3_0.03_280)]",
 };
 
-function certGrade(scoreNum: number): { label: string; grade: string } {
-  if (scoreNum >= 90) return { label: "Platinum", grade: "A" };
-  if (scoreNum >= 80) return { label: "Gold", grade: "B" };
-  if (scoreNum >= 70) return { label: "Silver", grade: "C" };
+function certGrade(pct: number): { label: string; grade: string } {
+  if (pct >= 90) return { label: "Platinum", grade: "A" };
+  if (pct >= 80) return { label: "Gold", grade: "B" };
+  if (pct >= 70) return { label: "Silver", grade: "C" };
   return { label: "Not Passed", grade: "F" };
 }
 
@@ -31,7 +31,7 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
   const { address: walletAddress, isConnected, connect, isConnecting } = useWalletConnection();
 
   const certData = mod && score && total
-    ? { module: mod, scoreNum: Number(score), totalNum: Number(total), grade: grade || certGrade(Number(score)).grade }
+    ? { module: mod, scoreNum: Number(score), totalNum: Number(total), grade: grade || certGrade(Math.round(Number(score) / Number(total) * 100)).grade }
     : null;
 
   const handleCopy = (text: string) => {
@@ -78,7 +78,7 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
               <div className="mt-6 grid grid-cols-2 gap-4 border-t border-border/60 pt-6">
                 <div>
                   <div className="text-xs uppercase tracking-wider text-muted-foreground">Score</div>
-                  <div className="text-3xl font-extrabold">{certData.scoreNum}/{certData.totalNum}</div>
+                  <div className="text-3xl font-extrabold">{pct}%</div>
                 </div>
                 <div>
                   <div className="text-xs uppercase tracking-wider text-muted-foreground">Grade</div>
@@ -163,7 +163,8 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
           {!certsLoading && myCerts && myCerts.length > 0 && (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {myCerts.map((cert, idx) => {
-                const g = certGrade(cert.score);
+                const pct = cert.percentage ?? Math.round(cert.score / 300 * 100);
+                const g = certGrade(pct);
                 const tier = cert.tier || g.label;
                 const tierBg = tier === "Platinum"
                   ? "from-[oklch(0.92_0.05_295)] to-[oklch(0.78_0.13_295)]"
@@ -199,7 +200,7 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
                       <div className="grid grid-cols-2 gap-3">
                         <div className="rounded-xl bg-primary/5 p-3 text-center">
                           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Score</div>
-                          <div className="text-xl font-extrabold">{cert.score}</div>
+                          <div className="text-xl font-extrabold">{pct}%</div>
                         </div>
                         <div className="rounded-xl bg-amber-500/5 p-3 text-center">
                           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Grade</div>
@@ -255,9 +256,9 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
         {/* Tier explainer */}
         <div className="mt-16 grid gap-5 md:grid-cols-3">
           {[
-            { name: "Platinum", range: "90 – 100", desc: "Grade A — mastery confirmed by consensus." , icon: Trophy },
-            { name: "Gold", range: "80 – 89", desc: "Grade B — strong, professional-level competency." , icon: Award },
-            { name: "Silver", range: "70 – 79", desc: "Grade C — solid foundation, room to deepen." , icon: Star },
+            { name: "Platinum", range: "90% – 100%", desc: "Grade A — mastery confirmed by consensus." , icon: Trophy },
+            { name: "Gold", range: "80% – 89%", desc: "Grade B — strong, professional-level competency." , icon: Award },
+            { name: "Silver", range: "70% – 79%", desc: "Grade C — solid foundation, room to deepen." , icon: Star },
           ].map((t) => (
             <div key={t.name} className="rounded-3xl border border-border/60 bg-card p-7 shadow-card">
               <div className={`inline-grid h-12 w-12 place-items-center rounded-2xl ${tierColor[t.name]}`}>

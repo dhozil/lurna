@@ -279,6 +279,8 @@ class Lurna(gl.Contract):
                 "category": category,
                 "course": course,
                 "score": int(total_score),
+                "max_score": int(max_possible),
+                "percentage": int(pct),
                 "grade": grade,
                 "tier": tier,
                 "attempt_id": int(attempt_id),
@@ -306,7 +308,7 @@ class Lurna(gl.Contract):
                         out = []
                         for i in range(num_q):
                             sv = max(0, min(100, int(scores[i])))
-                            r = reasoning[i + 1].strip() if (i + 1) < len(reasoning) else ""
+                            r = reasoning[i].strip() if i < len(reasoning) else ""
                             out.append({"score": sv, "reasoning": r})
                         return out
             except:

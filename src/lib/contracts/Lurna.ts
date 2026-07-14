@@ -8,8 +8,8 @@ import type { Address } from "viem";
 export interface EvaluationResult {
   question: string;
   student_answer: string;
-  correct_answer: string;
   score: number;
+  reasoning: string;
 }
 
 export interface QuizAttempt {
@@ -22,7 +22,8 @@ export interface QuizAttempt {
   max_score: number;
   percentage: number;
   passed: boolean;
-  timestamp: string | number;
+  timestamp?: string | number;
+  eval_start?: number;
 }
 
 export interface BestScore {
@@ -51,6 +52,8 @@ export interface CertificateMetadata {
   category: string;
   course: string;
   score: number;
+  max_score: number;
+  percentage: number;
   grade: string;
   tier: string;
   timestamp: number;
@@ -283,25 +286,22 @@ class LurnaContract {
 
   // ── Writes ──
 
-  async setDisplayName(accountAddress: string, name: string): Promise<TransactionResult> {
-    const result = await this.writeAndWait("set_display_name", [accountAddress, name]);
+  async setDisplayName(name: string): Promise<TransactionResult> {
+    const result = await this.writeAndWait("set_display_name", [name]);
     return { success: result.success, txHash: result.data?.txHash, error: result.error };
   }
 
   async submitQuiz(
-    accountAddress: string,
-    student: string,
     moduleId: string,
     category: string,
     course: string,
-    questionsJSON: string,
-    pointsPerQuestion: number,
+    answers: string,
     moduleSummary: string,
   ): Promise<TransactionResult<QuizAttempt>> {
     const countBefore = await this.getTotalAttempts();
 
     const result = await this.writeAndWait("submit_quiz", [
-      student, moduleId, category, course, questionsJSON, pointsPerQuestion, moduleSummary,
+      moduleId, category, course, answers, moduleSummary,
     ]);
 
     if (!result.success) return { success: false, error: result.error || "Unknown error" };
