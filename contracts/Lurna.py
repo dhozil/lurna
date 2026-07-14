@@ -246,7 +246,7 @@ class Lurna(gl.Contract):
             existing = scores[module_id]
             if int(pct) <= existing.get("percentage", 0):
                 return result
-            old_total -= u256(existing.get("percentage", 0))
+            old_total -= u256(existing.get("score", 0))
 
         scores[module_id] = {
             "module_id": module_id, "category": category, "course": course,
@@ -255,7 +255,7 @@ class Lurna(gl.Contract):
         }
         self.best_scores[student] = json.dumps(scores)
 
-        new_total = old_total + pct
+        new_total = old_total + total_score
         self.total_best_scores[student] = new_total
 
         if student not in self.leaderboard_students:
