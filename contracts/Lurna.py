@@ -293,16 +293,22 @@ class Lurna(gl.Contract):
             q = questions_list[i]
             sa = str(q.get("student_answer", "")).strip()
             parts.append(f"Q{i+1}: {q.get('question', '')}\nA: {'(no answer)' if not sa else sa}")
-        prompt = "\n".join(parts) + "\n\nReply with 3 comma-separated numbers only: 85, 72, 91"
+        prompt = "\n".join(parts) + "\n\nFor each essay write a brief evaluation then give score.\nFormat:\nEssay 1: Strong analysis... Score: 85\nEssay 2: Lacks depth... Score: 72\nEssay 3: Good arguments... Score: 91"
 
         def leader_fn() -> list:
             try:
                 raw = gl.nondet.exec_prompt(prompt)
                 if isinstance(raw, str):
                     import re as _re
-                    nums = _re.findall(r"\d+", raw)
-                    if len(nums) >= num_q:
-                        return [{"score": max(0, min(100, int(nums[i]))), "reasoning": ""} for i in range(num_q)]
+                    scores = _re.findall(r"Score:\s*(\d+)", raw)
+                    if len(scores) >= num_q:
+                        reasoning = _re.split(r"Score:\s*\d+", raw)
+                        out = []
+                        for i in range(num_q):
+                            sv = max(0, min(100, int(scores[i])))
+                            r = reasoning[i + 1].strip() if (i + 1) < len(reasoning) else ""
+                            out.append({"score": sv, "reasoning": r})
+                        return out
             except:
                 pass
             return [{"score": 0, "reasoning": "AI evaluation failed"} for _ in range(num_q)]

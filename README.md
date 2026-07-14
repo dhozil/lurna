@@ -4,8 +4,8 @@
 </h1>
 
 <p align="center">
-  <b>Lurna is a decentralized learning platform on GenLayer that grades quizzes through multi-agent AI consensus. Each submission is evaluated by multiple AI validators (GPT, Claude, Llama, etc.) running inside GenLayer smart contracts — if supermajority agrees, the score is accepted on-chain.</b><br>
-  Multi-agent quiz grading · On-chain NFT certificates · GenLayer
+  <b>Lurna is a decentralized learning platform on GenLayer that grades essays through multi-agent AI consensus. Each submission is evaluated by multiple AI validators (GPT, Claude, Llama, etc.) running inside GenLayer smart contracts — if supermajority agrees, the score is accepted on-chain.</b><br>
+  AI-graded essays · On-chain NFT certificates · GenLayer
 </p>
 
 <p align="center">
@@ -44,7 +44,7 @@ Deployed on **GenLayer Bradbury** testnet.
 | **Chain ID** | `4221` (`0x107d`) |
 | **RPC** | `https://rpc-bradbury.genlayer.com` |
 | **Explorer** | [explorer-bradbury.genlayer.com](https://explorer-bradbury.genlayer.com) |
-| **Contract** | `0x20dEd2d718e400c3D7Dd83b81dC3F11D986563e2` |
+| **Contract** | `0x0a5Cbd1640eD47eCc7f0F21C60b2F4083E666181` |
 | **Source** | `contracts/Lurna.py` |
 
 A single unified Python contract handles:
@@ -62,13 +62,12 @@ A single unified Python contract handles:
 
 | Feature | Description |
 |---------|-------------|
-| **AI Consensus Grading** | Each quiz answer is evaluated by `exec_prompt` with multi-agent validation. Validators confirm the leader produced a valid result — permissive TravelMindAI pattern prevents `VALIDATORS_TIMEOUT`. |
-| **On-Chain Certificates** | NFT-style credentials minted for every passing quiz (score ≥ 70%). Stored permanently in `TreeMap[u256, str]` with student, course, category, score, grade, tier, and timestamp. |
+| **AI Consensus Grading** | Each essay answer is evaluated by `exec_prompt` with multi-agent validation. Leader runs AI evaluation; validators independently re-run `exec_prompt` (different AI model) and compare scores within ±25 tolerance. |
+| **On-Chain Certificates** | NFT-style credentials minted for every passing essay (score ≥ 70%). Stored permanently in `TreeMap[u256, str]` with student, course, category, score, grade, tier, and timestamp. |
 | **Leaderboard** | Aggregates per-module best scores across all students. Sorted by total percentage. Displays student address, handle (display name), modules passed, certificates earned, and highest grade. |
 | **Wallet Authentication** | EIP-1193 compatible — MetaMask, Rabby, Coinbase Wallet, Brave Wallet, Trust Wallet, and generic browser wallets. Wallet selection modal on "Sign In". |
 | **Display Names** | On-chain handle registration. Saved to contract via `set_display_name`, cached in localStorage for fast dashboard loading. |
-| **Quiz Timer** | 5-second countdown per question with auto-advance. Configurable in `assessments.tsx`. |
-| **Question Shuffle** | Questions and answer options are shuffled each quiz start for fairness. |
+| **Essay-Only** | All 151 modules use scenario-based essay questions (5 per module). No MCQ, no answer key — AI grades purely on depth, clarity, critical thinking, originality, and detail. |
 
 ---
 
@@ -116,10 +115,10 @@ lurna/
 │   │   │   └── SectionHeader.tsx      #   Reusable section heading
 │   │   └── ui/                       # Shadcn UI primitives (50+ components)
 │   │
-│   ├── data/                         # Educational content
-│   │   ├── content.tsx                #   Core quiz questions & modules
-│   │   ├── content-extra.tsx          #   Extra modules
-│   │   ├── content-extra2.tsx         #   More modules
+│   ├── data/                         # Educational content (151 modules, essay questions only)
+│   │   ├── content.tsx                #   Core modules (GenLayer, Blockchain, Smart Contracts, Crypto, AI)
+│   │   ├── content-extra.tsx          #   Extra modules (Solidity, Web3, Ethereum, DeFi, NFT)
+│   │   ├── content-extra2.tsx         #   More modules (84 across 12 categories)
 │   │   └── all-data.tsx               #   Aggregated data export
 │   │
 │   ├── hooks/
@@ -134,7 +133,7 @@ lurna/
 │   │   │   ├── config.ts             #   Network & contract config from env
 │   │   │   └── WalletContext.tsx      #   Wallet connection context + provider
 │   │   ├── wallets.ts                #   Wallet detection utility
-│   │   ├── quiz-utils.ts             #   Quiz shuffling, grading utilities
+│   │   ├── quiz-utils.ts             #   Grading thresholds, localStorage helpers
 │   │   ├── utils.ts                  #   General utilities (cn helper)
 │   │   ├── error-capture.ts          #   Server-side error capture
 │   │   ├── error-page.ts             #   Error page renderer
@@ -148,7 +147,7 @@ lurna/
 │   ├── routes/                       # TanStack Router file-based routes
 │   │   ├── __root.tsx                 #   Root layout
 │   │   ├── index.tsx                  #   Home page
-│   │   ├── assessments.tsx           #   Quiz taking page
+│   │   ├── assessments.tsx           #   Assessment page (Learn + Essay tabs)
 │   │   ├── dashboard.tsx             #   Dashboard route
 │   │   ├── certificates.tsx          #   Certificates route
 │   │   ├── how-it-works.tsx          #   How it works route
@@ -174,20 +173,20 @@ lurna/
 
 ## 🏗 Architecture
 
-### Quiz Flow
+### Essay Flow
 
 ```
-User selects module → Questions shuffled → 5s timer per question
+User selects module → Read summary (Learn tab) → Answer 5 essay questions (Assess tab)
         ↓
-All answers submitted → submit_quiz() called on contract
+All answers submitted → submit_quiz() called on contract (sender bound via gl.message.sender_address)
         ↓
-exec_prompt(prompt) → Leader generates scores
+Leader: exec_prompt(prompt) → AI evaluates all 5 essays (critical teacher, grades 0–100)
         ↓
-Validators confirm leader produced valid Return (permissive)
+Validator: independently re-runs exec_prompt (different AI model) → compares scores with ±25 tolerance
         ↓
-Scores recorded → Best score updated → Certificate minted if ≥70%
+Consensus reached → Scores recorded → Best score updated → Certificate minted if ≥70%
         ↓
-Receipt parsed on frontend → Attempt data displayed
+Receipt parsed on frontend → Attempt result displayed
 ```
 
 ### Smart Contract Functions
@@ -213,25 +212,30 @@ Receipt parsed on frontend → Attempt data displayed
 
 | Function | Parameters | Description |
 |----------|-----------|-------------|
-| `submit_quiz(student, module_id, category, course, questions, points_per_question, module_summary)` | Quiz data + answers | Submit quiz for AI Consensus evaluation |
+| `submit_quiz(module_id, category, course, answers, module_summary)` | Module + answers (JSON) | Submit essay for AI Consensus evaluation; sender bound via `gl.message.sender_address` |
 | `set_display_name(student, name)` | Address + name | Register on-chain display name |
 | `transfer_admin(new_admin)` | New admin address | Transfer contract ownership |
 
 ### Consensus Pattern
 
-Lurna uses a **permissive validator pattern** (inspired by TravelMindAI):
+Lurna uses a **cross-validation pattern** — the leader evaluates essays via AI, and validators independently re-run the same prompt with their own AI model:
 
 ```python
 def leader_fn() -> list:
-    raw = gl.nondet.exec_prompt(prompt)
-    # Handles list, dict, and str return formats
-    return parsed_scores
+    result = gl.nondet.exec_prompt(prompt)
+    return _parse_ai_scores(result)
 
 def validator_fn(leader_res) -> bool:
-    return isinstance(leader_res, gl.vm.Return)  # Any valid Return passes
+    if not isinstance(leader_res, gl.vm.Return): return False
+    scores = leader_res.data
+    if not _validate_scores(scores): return False
+    # Re-run with different AI model to cross-validate
+    recheck = _parse_ai_scores(gl.nondet.exec_prompt(prompt))
+    for i, s in enumerate(scores):
+        if i < len(recheck) and abs(s - recheck[i]) > 25:
+            return False
+    return True
 ```
-
-Validators do NOT re-run `exec_prompt` — each validator has a different AI model, so re-running would produce different scores and cause `VALIDATORS_TIMEOUT`. Instead, validators simply confirm the leader produced a valid `Return` object. Post-processing extracts the scores from `consensus_data`.
 
 ---
 
@@ -309,7 +313,7 @@ const leaderboard = await lurna.getLeaderboard(10);
 
 // Write
 const result = await lurna.setDisplayName(address, "MyName");
-const quizResult = await lurna.submitQuiz(address, moduleId, ...);
+const quizResult = await lurna.submitQuiz(moduleId, category, course, answers, moduleSummary);
 ```
 
 ---
