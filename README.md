@@ -251,7 +251,7 @@ def validator_fn(leader_res) -> bool:
     if all(s == 0 for s in leader_data) and all(s == 0 for s in mine):
         return True
     for i in range(num_q):
-        if not _scores_agree(leader_data[i]["score"], mine[i]["score"]):
+        if abs(leader_data[i]["score"] - mine[i]["score"]) > 30:
             return False
     return True
 
