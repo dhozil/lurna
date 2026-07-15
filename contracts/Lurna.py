@@ -547,7 +547,7 @@ class Lurna(gl.Contract):
             for i in range(num_q):
                 lv = int(leader_data[i].get("score", 0))
                 mv = int(mine[i].get("score", 0))
-                tol = 20
+                tol = 30
                 if abs(lv - mv) > tol:
                     return False
             return True
