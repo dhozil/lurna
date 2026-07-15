@@ -4,6 +4,166 @@ from genlayer import *
 import json
 
 
+MODULE_HASHES = {
+    "what-is-genlayer": "2140921743",
+    "optimistic-democracy": "1247498061",
+    "intelligent-contracts": "3256757919",
+    "use-cases": "2038760605",
+    "genlayer-fundamentals-essay-1": "433656702",
+    "genlayer-fundamentals-essay-2": "3624856613",
+    "genlayer-fundamentals-essay-3": "3808802820",
+    "what-is-blockchain": "3303368022",
+    "consensus-mechanisms": "1981790548",
+    "blocks-transactions": "1066767619",
+    "blockchain-use-cases": "2703470420",
+    "blockchain-fundamentals-essay-1": "3452789907",
+    "blockchain-fundamentals-essay-2": "127668626",
+    "blockchain-fundamentals-essay-3": "89387907",
+    "what-are-smart-contracts": "2060947760",
+    "solidity-basics": "3402094500",
+    "security-best-practices": "3762185479",
+    "real-world-applications": "2465555272",
+    "smart-contract-fundamentals-essay-1": "3888267613",
+    "smart-contract-fundamentals-essay-2": "4059276497",
+    "smart-contract-fundamentals-essay-3": "3961737901",
+    "crypto-basics": "2587577773",
+    "wallets-transactions": "2469009763",
+    "security-storage": "3552766181",
+    "markets-trading": "390691109",
+    "crypto-fundamentals-essay-1": "1834200013",
+    "crypto-fundamentals-essay-2": "4186025260",
+    "crypto-fundamentals-essay-3": "3393809156",
+    "ai-intro": "952941462",
+    "machine-learning": "1677972803",
+    "neural-networks": "1345373540",
+    "ai-ethics": "2493474818",
+    "ai-fundamentals-essay-1": "2807624337",
+    "ai-fundamentals-essay-2": "1316916760",
+    "ai-fundamentals-essay-3": "1036304382",
+    "sol-intro": "2485036489",
+    "sol-inheritance": "2533370186",
+    "sol-gas": "2549345678",
+    "sol-patterns": "3921752829",
+    "solidity-deep-dive-essay-1": "1576323958",
+    "solidity-deep-dive-essay-2": "3272027118",
+    "solidity-deep-dive-essay-3": "3234378037",
+    "web3-intro": "177529562",
+    "web3-stack": "1041585820",
+    "web3-wallets": "1462657905",
+    "web3-building": "2480848045",
+    "web3-fundamentals-essay-1": "2425258135",
+    "web3-fundamentals-essay-2": "578905426",
+    "web3-fundamentals-essay-3": "1263228148",
+    "eth-intro": "4206584027",
+    "eth-evm": "2472484737",
+    "eth-defi": "743169187",
+    "eth-l2": "2897532064",
+    "ethereum-protocol-essay-1": "4060712296",
+    "ethereum-protocol-essay-2": "4234380649",
+    "ethereum-protocol-essay-3": "813826573",
+    "defi-intro": "1812675194",
+    "defi-lending": "3882716790",
+    "defi-amm": "3393467812",
+    "defi-risk": "3412764781",
+    "defi-deep-dive-essay-1": "1891012680",
+    "defi-deep-dive-essay-2": "2426580114",
+    "defi-deep-dive-essay-3": "2508243714",
+    "nft-intro": "292330698",
+    "nft-minting": "654292642",
+    "nft-marketplaces": "562039961",
+    "nft-use-cases": "378655443",
+    "nft-mastery-essay-1": "2752210559",
+    "nft-mastery-essay-2": "2518669530",
+    "nft-mastery-essay-3": "654425948",
+    "cyber-intro": "3428191225",
+    "cyber-network": "4170266234",
+    "cyber-crypto": "1957964339",
+    "cyber-practice": "4208170711",
+    "cyber-essentials-essay-1": "1779420369",
+    "cyber-essentials-essay-2": "660148286",
+    "cyber-essentials-essay-3": "3909981858",
+    "prog-intro": "67340002",
+    "prog-control": "4135200924",
+    "prog-func": "2033266251",
+    "prog-ds": "2626839481",
+    "programming-fundamentals-essay-1": "600130194",
+    "programming-fundamentals-essay-2": "4174137432",
+    "programming-fundamentals-essay-3": "4157436736",
+    "js-basics": "3568698494",
+    "js-async": "2196379258",
+    "js-dom": "651254555",
+    "js-es6": "128299200",
+    "javascript-mastery-essay-1": "4213629248",
+    "javascript-mastery-essay-2": "3101715527",
+    "javascript-mastery-essay-3": "745744709",
+    "ts-basics": "1382523516",
+    "ts-interfaces": "2116152990",
+    "ts-generics": "2172295406",
+    "ts-advanced": "3274779877",
+    "typescript-deep-essay-1": "2463167442",
+    "typescript-deep-essay-2": "2365388501",
+    "typescript-deep-essay-3": "3870850901",
+    "react-intro": "886027406",
+    "react-hooks": "520409515",
+    "react-performance": "3643967255",
+    "react-ecosystem": "4036520240",
+    "react-mastery-essay-1": "3263077611",
+    "react-mastery-essay-2": "2648805911",
+    "react-mastery-essay-3": "1978484018",
+    "next-intro": "1370490896",
+    "next-routing": "1537821702",
+    "next-advanced": "2621857260",
+    "next-deploy": "384592953",
+    "nextjs-fullstack-essay-1": "916792529",
+    "nextjs-fullstack-essay-2": "1224959272",
+    "nextjs-fullstack-essay-3": "2678868760",
+    "db-intro": "3874370985",
+    "db-sql": "407727818",
+    "db-design": "3928833394",
+    "db-nosql": "1035800201",
+    "database-essentials-essay-1": "2459007947",
+    "database-essentials-essay-2": "2101037638",
+    "database-essentials-essay-3": "1738914104",
+    "supa-intro": "3718549305",
+    "supa-auth": "13251172",
+    "supa-realtime": "1625027809",
+    "supa-edge": "856869095",
+    "supabase-platform-essay-1": "2531342805",
+    "supabase-platform-essay-2": "1940864336",
+    "supabase-platform-essay-3": "1052518338",
+    "pm-intro": "3323199712",
+    "pm-strategy": "1580517701",
+    "pm-research": "2798686827",
+    "pm-delivery": "3575198356",
+    "product-leadership-essay-1": "385572120",
+    "product-leadership-essay-2": "1017879916",
+    "product-leadership-essay-3": "106205446",
+    "ux-intro": "2779216766",
+    "ui-design": "2009425046",
+    "ui-prototyping": "3427781949",
+    "ui-testing": "2734762180",
+    "uiux-essentials-essay-1": "4029369702",
+    "uiux-essentials-essay-2": "2364287689",
+    "uiux-essentials-essay-3": "2576366015",
+    "startup-intro": "3670787228",
+    "startup-business": "1776551888",
+    "startup-growth": "2295981129",
+    "startup-fundraising": "1764022676",
+    "startup-essentials-essay-1": "3269964082",
+    "startup-essentials-essay-2": "1697021588",
+    "startup-essentials-essay-3": "291404787",
+    "ds-intro": "3195451481",
+    "ds-tokens": "2691601546",
+    "ds-components": "4083377992",
+    "ds-operations": "1678085334",
+    "design-systems-essay-1": "3712021125",
+    "design-systems-essay-2": "2385990389",
+    "design-systems-essay-3": "2457877527"
+
+}
+
+
+
 class Lurna(gl.Contract):
     # ── Evaluation ──
     evaluations: TreeMap[u256, str]
@@ -23,6 +183,9 @@ class Lurna(gl.Contract):
     student_module_certs: TreeMap[str, str]  # "student:module_id" -> cert_id
     total_supply: u256
 
+    # ── On-chain curriculum hashes ──
+    module_hashes: TreeMap[str, str]
+
     # ── Display names ──
     display_names: TreeMap[str, str]
 
@@ -30,6 +193,8 @@ class Lurna(gl.Contract):
         self.total_evaluations = 0
         self.total_attempts = 0
         self.total_supply = 0
+        for mid, h in MODULE_HASHES.items():
+            self.module_hashes[mid] = h
 
     # ───────── helpers ─────────
 
@@ -52,6 +217,12 @@ class Lurna(gl.Contract):
             return "Silver"
         else:
             return "Not Passed"
+
+    def _checksum(self, text: str) -> str:
+        h = 0
+        for c in str(text):
+            h = (h * 31 + ord(c)) & 0xFFFFFFFF
+        return str(h)
 
     # ───────── views ─────────
 
@@ -170,23 +341,43 @@ class Lurna(gl.Contract):
         category: str,
         course: str,
         answers: str,
+        questions: str,
         module_summary: str,
     ) -> str:
+        # Verify module exists on-chain
+        stored_hash = self.module_hashes.get(module_id, "")
+        if stored_hash == "":
+            return '{"error":"Module not found"}'
+
+        # Verify question integrity via checksum
+        if self._checksum(questions) != stored_hash:
+            return '{"error":"Question hash mismatch"}'
+
         try:
-            qs = json.loads(answers)
+            qs = json.loads(questions)
+        except:
+            return '{"error":"Invalid questions JSON"}'
+
+        try:
+            student_answers = json.loads(answers)
         except:
             return '{"error":"Invalid answers JSON"}'
 
-        student = str(gl.message.sender_address)
+        if not isinstance(qs, list) or not isinstance(student_answers, list):
+            return '{"error":"Questions and answers must be arrays"}'
+
         num_q = len(qs)
         if num_q == 0:
-            return '{"error":"No answers provided"}'
+            return '{"error":"No questions provided"}'
+        if len(student_answers) != num_q:
+            return '{"error":"Answer count mismatch"}'
 
+        student = str(gl.message.sender_address)
         total_score = u256(0)
         max_possible = u256(num_q * 100)
 
         try:
-            scores_raw = self._evaluate_all(module_summary, qs, num_q)
+            scores_raw = self._evaluate_all(module_summary, qs, student_answers, num_q)
             scores_data = json.loads(scores_raw)
             n = len(scores_data)
             if n > 0 and n == num_q:
@@ -198,8 +389,8 @@ class Lurna(gl.Contract):
                     total_score += u256(sv)
                     eval_id = self.total_evaluations + 1
                     ev = json.dumps({
-                        "question": str(qs[i].get("question", "")),
-                        "student_answer": str(qs[i].get("student_answer", "")),
+                        "question": str(qs[i]),
+                        "student_answer": str(student_answers[i]),
                         "score": sv,
                         "reasoning": str(sd.get("reasoning", "")) if hasattr(sd, "get") else "",
                     })
@@ -207,6 +398,8 @@ class Lurna(gl.Contract):
                     self.total_evaluations = eval_id
             else:
                 return '{"error":"AI evaluation returned invalid results"}'
+            if total_score == 0:
+                return '{"error":"Consensus failure — all validators returned zero. Suspicious submission not recorded."}'
         except:
             return '{"error":"AI evaluation failed"}'
 
@@ -289,12 +482,11 @@ class Lurna(gl.Contract):
 
         return result
 
-    def _evaluate_all(self, summary: str, questions_list, num_q: int) -> str:
+    def _evaluate_all(self, summary: str, questions, student_answers, num_q: int) -> str:
         parts = [f"Grade {num_q} essays 0-100.", f"Module: {summary}"]
         for i in range(num_q):
-            q = questions_list[i]
-            sa = str(q.get("student_answer", "")).strip()
-            parts.append(f"Q{i+1}: {q.get('question', '')}\nA: {'(no answer)' if not sa else sa}")
+            sa = str(student_answers[i]).strip() if i < len(student_answers) else ""
+            parts.append(f"Q{i+1}: {str(questions[i])}\nA: {'(no answer)' if not sa else sa}")
         prompt = "\n".join(parts) + "\n\nFor each essay write a brief evaluation then give score.\nFormat:\nEssay 1: Strong analysis... Score: 85\nEssay 2: Lacks depth... Score: 72\nEssay 3: Good arguments... Score: 91"
 
         def leader_fn() -> list:

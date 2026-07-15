@@ -1,6 +1,6 @@
 import { SiteShell, PageHeader } from "@/components/site/SiteShell";
 import { ShieldCheck, Search, Award, Trophy, Star, Sparkles, ArrowRight, Check, Copy, Wallet } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import certificate3d from "@/assets/certificate-3d.png";
 import { useWalletConnection, useStudentCertificates } from "@/hooks/useLurnaContracts";
 
@@ -40,7 +40,40 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const { data: myCerts, isLoading: certsLoading, isError: certsError } = useStudentCertificates(isConnected ? walletAddress : null);
+  const { data: chainCerts, isLoading: certsLoading, isError: certsError } = useStudentCertificates(isConnected ? walletAddress : null);
+
+  /* ── Merge local (accepted) + chain (finalized) certs ── */
+  const allCerts = useMemo(() => {
+    const map: Record<string, any> = {};
+    try {
+      const raw = localStorage.getItem("lurna_local_scores");
+      if (raw) {
+        for (const d of Object.values(JSON.parse(raw))) {
+          const entry = d as Record<string, any>;
+          if (entry && typeof entry === "object" && entry.grade !== "F") {
+            const course = entry.course || entry.module_id || "";
+            map[course] = {
+              course,
+              category: entry.category || "",
+              score: entry.score,
+              max_score: entry.max_score,
+              percentage: entry.percentage ?? Math.round((entry.score / (entry.max_score || 1)) * 100),
+              grade: entry.grade,
+              timestamp: entry.earned_at || Date.now(),
+              attempt_id: 0,
+              student: "",
+            };
+          }
+        }
+      }
+    } catch {}
+    if (chainCerts) {
+      for (const c of chainCerts) {
+        map[c.course] = { ...c };
+      }
+    }
+    return Object.values(map);
+  }, [chainCerts]);
 
   /* ── Certificate preview from quiz result ── */
   if (certData) {
@@ -136,21 +169,21 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
             </p>
           </div>
 
-          {certsLoading && (
+          {certsLoading && allCerts.length === 0 && (
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               Loading certificates from blockchain...
             </div>
           )}
 
-          {!certsLoading && certsError && (
+          {allCerts.length === 0 && !certsLoading && certsError && (
             <div className="rounded-3xl border border-red-500/30 bg-card p-12 text-center">
               <h3 className="text-lg font-bold text-red-600">Failed to load certificates</h3>
               <p className="mt-1 text-sm text-muted-foreground">Could not read from the blockchain. Please try again later.</p>
             </div>
           )}
 
-          {!certsLoading && !certsError && myCerts && myCerts.length === 0 && (
+          {allCerts.length === 0 && !certsLoading && !certsError && (
             <div className="rounded-3xl border border-dashed border-border/60 bg-card/50 p-12 text-center">
               <Trophy className="mx-auto h-10 w-10 text-muted-foreground/40" />
               <h3 className="mt-4 text-lg font-bold">No certificates yet</h3>
@@ -160,9 +193,9 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
             </div>
           )}
 
-          {!certsLoading && myCerts && myCerts.length > 0 && (
+          {allCerts.length > 0 && (
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {myCerts.map((cert, idx) => {
+              {allCerts.map((cert, idx) => {
                 const pct = cert.percentage ?? Math.round(cert.score / 300 * 100);
                 const g = certGrade(pct);
                 const tier = cert.tier || g.label;

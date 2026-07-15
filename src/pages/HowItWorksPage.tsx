@@ -4,8 +4,8 @@ import { BookOpen, Sparkles, BrainCircuit, ShieldCheck, Trophy, Globe, ArrowRigh
 
 const steps = [
   { n: "01", icon: BookOpen, title: "Choose a Category", desc: "Start from Blockchain, AI, Web3, Programming, or any of 20+ tracks." },
-  { n: "02", icon: Sparkles, title: "Read AI Summary", desc: "Concise modules curated by AI and reviewed by subject experts." },
-  { n: "03", icon: BrainCircuit, title: "Take the Quiz", desc: "MCQ, essay, case study, or coding challenge — graded the right way." },
+  { n: "02", icon: Sparkles, title: "Read the Summary", desc: "Concise modules curated by AI and reviewed by subject experts — study the material first." },
+  { n: "03", icon: BrainCircuit, title: "Write the Essay", desc: "Scenario-based essay questions graded by AI consensus — no answer keys, just deep thinking." },
   { n: "04", icon: ShieldCheck, title: "AI Consensus Grades", desc: "Multiple AI agents independently score your work and reach consensus." },
   { n: "05", icon: Trophy, title: "Certificate Minted", desc: "Pass and your NFT credential is minted to your wallet automatically." },
   { n: "06", icon: Globe, title: "Public Verification", desc: "Share your Proof of Knowledge link with recruiters, peers, or anyone." },
@@ -48,10 +48,10 @@ export default function HowItWorksPage() {
 
           <div className="mt-12 grid gap-5 md:grid-cols-2">
             {[
-              { t: "Multiple Choice", d: "Validated instantly against the canonical answer key.", c: "1 AI agent · instant" },
-              { t: "Essay", d: "Three independent AI agents each score with rubric reasoning. The consensus is your grade.", c: "3 AI agents · ~10s" },
-              { t: "Case Study", d: "Multi-agent evaluation covering reasoning, structure, and real-world fit.", c: "3 AI agents · ~15s" },
-              { t: "Coding Challenge", d: "Reviewed across logic, security, performance, and best practices.", c: "4 AI agents · ~20s" },
+              { t: "Submit Essay", d: "Your answers are sent to the GenLayer contract, which binds the submission to your wallet.", c: "1 tx · instant" },
+              { t: "AI Leader Evaluates", d: "The leader runs exec_prompt with a grading rubric — each essay scored 0–100 with written reasoning.", c: "1 AI agent · ~5s" },
+              { t: "Validators Cross-Check", d: "Each validator independently re-runs exec_prompt with their own AI model, comparing scores within ±20 tolerance.", c: "3 AI agents · ~5s" },
+              { t: "Consensus Reached", d: "If supermajority agrees, the score is finalized, best score updated, and certificate minted on-chain.", c: "≥75% agreement" },
             ].map((q) => (
               <div key={q.t} className="rounded-3xl border border-border/60 bg-card p-7 shadow-card">
                 <div className="text-xs font-semibold uppercase tracking-wider text-primary">{q.c}</div>

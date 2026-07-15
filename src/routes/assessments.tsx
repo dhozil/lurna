@@ -1,40 +1,42 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { SiteShell } from "@/components/site/SiteShell";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
-  ChevronLeft, BookOpen, BrainCircuit, ArrowRight,
+  ChevronLeft, BookOpen, ArrowRight,
   ChevronRight, Wallet, Trophy, PenTool,
 } from "lucide-react";
 import { categoryGroups, getCategoryData, getModuleById, type Module } from "@/data/all-data";
-import type { Question, EssayQuestion } from "@/data/content";
+import type { EssayQuestion } from "@/data/content";
 import { useWalletConnection, useSubmitQuiz } from "@/hooks/useLurnaContracts";
-import {
-  setLastModule, getGrade, newAnswersToQuestions, newEssayQuestions, shuffleQuiz,
-} from "@/lib/quiz-utils";
+import { lurna } from "@/lib/contracts/Lurna";
+import type { EvaluationResult } from "@/lib/contracts/Lurna";
+import { setLastModule, getGrade, newEssayQuestions } from "@/lib/quiz-utils";
 
 interface AssSearch {
   category?: string;
   module?: string;
+  tab?: string;
 }
 
 export const Route = createFileRoute("/assessments")({
   validateSearch: (search: Record<string, string | undefined>): AssSearch => ({
     category: search.category || undefined,
     module: search.module || undefined,
+    tab: search.tab || undefined,
   }),
   head: () => ({
     meta: [
       { title: "Assessments — Lurna" },
-      { name: "description", content: "Explore 20+ learning categories from Blockchain and AI to Web3 and design." },
+      { name: "description", content: "Explore learning categories and test your knowledge with AI-graded essays." },
       { property: "og:title", content: "Assessments — Lurna" },
-      { property: "og:description", content: "Explore 20+ learning categories on Lurna." },
+      { property: "og:description", content: "Explore learning categories on Lurna." },
     ],
   }),
   component: AssessmentsPage,
 });
 
 function AssessmentsPage() {
-  const { category, module: moduleId } = Route.useSearch();
+  const { category, module: moduleId, tab } = Route.useSearch();
   const navigate = useNavigate();
   const catData = category ? getCategoryData(category) : null;
 
@@ -49,6 +51,7 @@ function AssessmentsPage() {
             categoryId={modData.category.id}
             categoryLabel={modData.category.label}
             categoryTint={modData.category.tint}
+            initialTab={tab === "assess" ? "assess" : "learn"}
             onBack={() => navigate({ to: "/assessments", search: { category } })}
           />
         </SiteShell>
@@ -90,19 +93,13 @@ function AssessmentsPage() {
                 className="group flex items-center gap-4 rounded-2xl border border-border/60 bg-card p-5 shadow-card transition hover:-translate-y-1 hover:border-primary/40 hover:shadow-soft"
               >
                 <div className={`grid h-14 w-14 flex-none place-items-center rounded-2xl bg-gradient-to-br ${catData.tint} text-white shadow-md transition-transform group-hover:scale-110`}>
-                  {mod.essayQuestions ? <PenTool className="h-6 w-6" /> : <BrainCircuit className="h-6 w-6" />}
+                  <PenTool className="h-6 w-6" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-bold text-foreground">{mod.title}</div>
                   <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                    {mod.essayQuestions ? (
-                      <>
-                        <span>{mod.essayQuestions.length} essay questions</span>
-                        <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-600">Essay</span>
-                      </>
-                    ) : (
-                      <span>{mod.quiz!.length} questions</span>
-                    )}
+                    <span>{mod.essayQuestions.length} essay questions</span>
+                    <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-600">Essay</span>
                     <span>· {mod.trackTitle}</span>
                   </div>
                 </div>
@@ -174,357 +171,141 @@ function AssessmentsPage() {
   );
 }
 
-/* ═══════════════════ Module View (Router) ═══════════════════ */
+/* ═══════════════════ Module View ═══════════════════ */
 
-function ModuleView({ module, trackTitle, categoryId, categoryLabel, categoryTint, onBack }: {
-  module: Module; trackTitle: string; categoryId: string; categoryLabel: string; categoryTint: string; onBack: () => void;
+function ModuleView({ module, trackTitle, categoryId, categoryLabel, categoryTint, initialTab, onBack }: {
+  module: Module; trackTitle: string; categoryId: string; categoryLabel: string; categoryTint: string; initialTab: string; onBack: () => void;
 }) {
-  if (module.essayQuestions) {
-    return <EssayModuleView module={module} trackTitle={trackTitle} categoryId={categoryId} categoryLabel={categoryLabel} categoryTint={categoryTint} onBack={onBack} />;
-  }
-  return <MCQModuleView module={module} trackTitle={trackTitle} categoryId={categoryId} categoryLabel={categoryLabel} categoryTint={categoryTint} onBack={onBack} />;
-}
-
-/* ═══════════════════ MCQ Module View ═══════════════════ */
-
-function MCQModuleView({ module, trackTitle, categoryId, categoryLabel, categoryTint, onBack }: {
-  module: Module; trackTitle: string; categoryId: string; categoryLabel: string; categoryTint: string; onBack: () => void;
-}) {
-  const [quizStarted, setQuizStarted] = useState(false);
-  const [shuffled, setShuffled] = useState<Question[] | null>(null);
-  const [currentQ, setCurrentQ] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [submitting, setSubmitting] = useState(false);
-  const [timer, setTimer] = useState(5);
-
-  const { address: walletAddress, isConnected } = useWalletConnection();
-  const submitQuiz = useSubmitQuiz();
+  const [tab, setTab] = useState(initialTab);
 
   useEffect(() => { setLastModule(module.id); }, [module.id]);
+  useEffect(() => { setTab(initialTab); }, [initialTab]);
 
-  const questions = shuffled ?? module.quiz!;
-  const q = questions[currentQ];
-  const isLast = currentQ === questions.length - 1;
-  const answeredCount = Object.keys(answers).length;
-  const totalPoints = questions.reduce((s, q) => s + q.points, 0);
-
-  const startQuiz = useCallback(() => {
-    setShuffled(shuffleQuiz(module.quiz!));
-    setQuizStarted(true);
-  }, [module.quiz]);
-
-  const chainResult = submitQuiz.isSuccess ? submitQuiz.data : undefined;
-  const result = chainResult
-    ? { score: chainResult.score, total: chainResult.max_score, grade: getGrade(chainResult.score, chainResult.max_score).grade }
-    : undefined;
-
-  const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
-
-  useEffect(() => {
-    if (!quizStarted || !shuffled || result || submitting || selected !== null || allAnswered) return;
-    const qid = q.id;
-    const last = isLast;
-    const ans = answers;
-    setTimer(5);
-    let count = 5;
-    intervalRef.current = setInterval(() => {
-      count--;
-      setTimer(count);
-      if (count <= 0) {
-        clearInterval(intervalRef.current);
-        const allAnswers = { ...ans, [qid]: -1 };
-        setAnswers(allAnswers);
-        if (last) finishQuiz(allAnswers);
-        else setCurrentQ((c) => c + 1);
-      }
-    }, 1000);
-    return () => clearInterval(intervalRef.current);
-  }, [currentQ, quizStarted, shuffled, result, submitting, selected]);
-
-  const finishQuiz = useCallback((finalAnswers: Record<string, number>) => {
-    if (!walletAddress) return;
-    setSubmitting(true);
-    submitQuiz.mutate(
-      {
-        student: walletAddress,
-        moduleId: module.id,
-        category: categoryLabel,
-        course: module.title,
-        questionsJSON: JSON.stringify(newAnswersToQuestions(finalAnswers, questions)),
-        pointsPerQuestion: questions[0]?.points || 0,
-        moduleSummary: module.summary,
-      },
-      { onSettled: () => setSubmitting(false) },
-    );
-  }, [walletAddress, module.id, categoryLabel, trackTitle, questions, submitQuiz]);
-
-  const allAnswered = Object.keys(answers).length === questions.length;
-  const timeUp = timer <= 0;
-
-  const handleSelect = useCallback((idx: number) => { if (!timeUp && !submitting && !result) setSelected(idx); }, [timeUp, submitting, result]);
-
-  const handleNext = useCallback(() => {
-    if (submitting || result || selected === null) return;
-    const updated = { ...answers, [q!.id]: selected };
-    setAnswers(updated);
-    setSelected(null);
-    setTimer(5);
-    if (isLast) finishQuiz(updated);
-    else setCurrentQ((c) => c + 1);
-  }, [selected, q, isLast, submitting, result, answers, questions, finishQuiz]);
-
-  const resetQuiz = useCallback(() => {
-    setCurrentQ(0); setSelected(null); setAnswers({}); setSubmitting(false);
-    setShuffled(null); setTimer(5); submitQuiz.reset(); setQuizStarted(false);
-  }, [submitQuiz]);
-
-  if (!quizStarted) {
-    return (
-      <div className="mx-auto max-w-4xl px-5 py-12 lg:px-8">
-        <button onClick={onBack} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground cursor-pointer mb-2">
-          <ChevronLeft className="h-4 w-4" /> All modules
-        </button>
-        <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-6">
-          <button onClick={onBack} className="hover:text-foreground cursor-pointer transition">Modules</button>
-          <ChevronRight className="h-3 w-3" />
-          <span className="text-foreground font-medium">{module.title}</span>
-        </nav>
-        <div className="flex items-center gap-3 mb-3">
-          <div className={`grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br ${categoryTint} text-white`}>
-            <BrainCircuit className="h-4 w-4" />
-          </div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{categoryLabel} · {trackTitle}</span>
-        </div>
-        <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">{module.title}</h1>
-
-        <div className="mt-10 grid gap-8 lg:grid-cols-3">
-          <div className="lg:col-span-2 rounded-3xl border border-border/60 bg-card p-8 shadow-card">
-            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" /> AI Summary
-            </h2>
-            <div className="text-sm leading-relaxed text-muted-foreground space-y-4 whitespace-pre-line">
-              {module.summary.split(/(?<=\.) /).map((s, i) => (
-                <p key={i}>{s}</p>
-              ))}
-            </div>
-          </div>
-
-          <div className="lg:col-span-1">
-            <div className="sticky top-24 rounded-3xl border border-border/60 bg-card p-6 text-center shadow-card">
-              <BrainCircuit className="mx-auto h-8 w-8 text-primary" />
-              <h3 className="mt-4 text-xl font-extrabold">Quiz</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{questions.length} questions · {totalPoints} pts</p>
-              <p className="text-xs text-muted-foreground">5s per question · ~{questions.length * 5}s total</p>
-              {isConnected ? (
-                <button onClick={startQuiz}
-                  className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-full bg-gradient-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft cursor-pointer hover:scale-[1.02] transition-transform"
-                >
-                  Start Quiz <ArrowRight className="h-4 w-4" />
-                </button>
-              ) : (
-                <button disabled
-                  className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-full bg-muted px-5 py-3 text-sm font-semibold text-muted-foreground cursor-not-allowed"
-                >
-                  <Wallet className="h-4 w-4" /> Connect Wallet to Start
-                </button>
-              )}
-              <div className="mt-5 text-left text-xs text-muted-foreground space-y-2">
-                <div className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-green-500/20 text-green-600 text-[10px] font-bold">{questions[0]?.points ?? 0}</span> pts per correct</div>
-                <div className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-primary-soft text-primary text-[10px] font-bold">70%</span> to pass</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (result) {
-    const pct = Math.round((result.score / result.total) * 100);
-    return (
-      <div className="mx-auto max-w-3xl px-5 py-12 lg:px-8">
-        <button onClick={onBack} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground cursor-pointer mb-2">
-          <ChevronLeft className="h-4 w-4" /> All modules
-        </button>
-        <div className="flex items-center gap-3 mb-3">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{categoryLabel} · {module.title}</span>
-        </div>
-
-        <div className="rounded-3xl border border-border/60 bg-card p-10 text-center shadow-card">
-          <div className="mx-auto grid h-28 w-28 place-items-center rounded-full bg-gradient-primary text-4xl font-extrabold text-primary-foreground shadow-glow">
-            {pct}%
-          </div>
-          <h2 className="mt-5 text-3xl font-extrabold tracking-tight">
-            {result.score}/{result.total} · Grade {result.grade}
-          </h2>
-          {chainResult && (
-            <p className="mt-1 text-sm text-muted-foreground">{getGrade(chainResult.score, chainResult.max_score).label}</p>
-          )}
-          <div className="mx-auto mt-4 h-2.5 max-w-xs rounded-full bg-secondary">
-            <div className="h-full rounded-full bg-gradient-primary transition-all" style={{ width: `${pct}%` }} />
-          </div>
-
-          <div className="mt-8 space-y-4 text-left">
-            {questions.map((question, idx) => {
-              const userAns = answers[question.id];
-              const correct = userAns === question.correctIndex;
-              return (
-                <div key={question.id} className={`rounded-2xl border p-4 ${correct ? "border-green-500/40 bg-green-500/5" : "border-red-500/40 bg-red-500/5"}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <span className="text-xs font-semibold text-muted-foreground">Q{idx + 1}</span>
-                      <p className="mt-0.5 text-sm font-semibold">{question.question}</p>
-                    </div>
-                    <span className={`flex-none text-[11px] font-bold px-2.5 py-0.5 rounded-full ${correct ? "bg-green-500/20 text-green-600" : "bg-red-500/20 text-red-600"}`}>
-                      {correct ? `+${question.points}` : "0"}/{question.points}
-                    </span>
-                  </div>
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    Your answer: <span className={correct ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>{question.options?.[userAns]}</span>
-                    {!correct && <> · Correct: <span className="text-green-600 font-semibold">{question.options?.[question.correctIndex ?? 0]}</span></>}
-                  </div>
-                  <p className="mt-1.5 text-xs text-muted-foreground/80">{question.explanation}</p>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <button onClick={resetQuiz} className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold cursor-pointer hover:bg-card/80 transition">
-              Retry Quiz
-            </button>
-            <button onClick={onBack} className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold cursor-pointer hover:bg-card/80 transition">
-              All Modules
-            </button>
-            <Link to="/certificates"
-              search={{ module: module.title, score: String(result.score), total: String(result.total), grade: result.grade }}
-              className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft hover:scale-[1.02] transition-transform"
-            >
-              <Trophy className="h-4 w-4" /> View Certificate
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (submitting) {
-    return (
-      <div className="mx-auto max-w-3xl px-5 py-12 lg:px-8">
-        <div className="rounded-3xl border border-border/60 bg-card p-16 text-center shadow-card">
-          <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-primary/10">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          </div>
-          <h2 className="mt-6 text-xl font-extrabold">Waiting for AI Consensus...</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            GenLayer validators are evaluating your answers
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (submitQuiz.isError) {
-    return (
-      <div className="mx-auto max-w-3xl px-5 py-12 lg:px-8">
-        <div className="rounded-3xl border border-red-500/30 bg-card p-16 text-center shadow-card">
-          <h2 className="text-xl font-extrabold text-red-600">Submission failed</h2>
-          <p className="mt-2 text-sm text-muted-foreground">{(submitQuiz.error as Error)?.message || "Unknown error"}</p>
-          <button onClick={resetQuiz} className="mt-6 rounded-full bg-gradient-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground cursor-pointer">
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const navigate = useNavigate();
+  const switchTab = (t: string) => {
+    setTab(t);
+    navigate({ to: "/assessments", search: { category: categoryId, module: module.id, tab: t }, replace: true });
+  };
 
   return (
-    <div className="mx-auto max-w-3xl px-5 py-12 lg:px-8">
+    <div className="mx-auto max-w-4xl px-5 py-12 lg:px-8">
       <button onClick={onBack} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground cursor-pointer mb-2">
         <ChevronLeft className="h-4 w-4" /> All modules
       </button>
+      <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-6">
+        <button onClick={onBack} className="hover:text-foreground cursor-pointer transition">Modules</button>
+        <ChevronRight className="h-3 w-3" />
+        <span className="text-foreground font-medium">{module.title}</span>
+      </nav>
+
       <div className="flex items-center gap-3 mb-3">
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{categoryLabel} · {module.title}</span>
+        <div className={`grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br ${categoryTint} text-white`}>
+          <PenTool className="h-4 w-4" />
+        </div>
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{categoryLabel} · {trackTitle}</span>
+      </div>
+      <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">{module.title}</h1>
+
+      {/* Tabs */}
+      <div className="mt-8 flex gap-1 rounded-xl bg-secondary p-1 w-fit">
+        <button onClick={() => switchTab("learn")}
+          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer ${tab === "learn" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          <BookOpen className="h-4 w-4" /> Learn
+        </button>
+        <button onClick={() => switchTab("assess")}
+          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition cursor-pointer ${tab === "assess" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          <PenTool className="h-4 w-4" /> Assess
+        </button>
       </div>
 
-      <div className="flex items-center gap-3 text-sm text-muted-foreground mb-6">
-        <span className="rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold text-primary">
-          {currentQ + 1} / {questions.length}
-        </span>
-        <div className="flex-1 h-1.5 rounded-full bg-secondary max-w-xs">
-          <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${((answeredCount + (selected !== null ? 1 : 0)) / questions.length) * 100}%` }} />
-        </div>
-        <span className="text-xs">{answeredCount}/{questions.length}</span>
+      {tab === "learn" ? (
+        <LearnView module={module} categoryTint={categoryTint} onStart={() => switchTab("assess")} />
+      ) : (
+        <AssessView module={module} categoryLabel={categoryLabel} categoryTint={categoryTint} trackTitle={trackTitle} />
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════ Learn View ═══════════════════ */
+
+function LearnView({ module, categoryTint, onStart }: { module: Module; categoryTint: string; onStart: () => void }) {
+  return (
+    <div className="mt-6 rounded-3xl border border-border/60 bg-card p-8 shadow-card">
+      <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+        <BookOpen className="h-5 w-5 text-primary" /> Study Material
+      </h2>
+      <div className="text-sm leading-relaxed text-muted-foreground space-y-4 whitespace-pre-line">
+        {module.summary.split(/(?<=\.) /).map((s, i) => (
+          <p key={i}>{s}</p>
+        ))}
       </div>
-
-      <div className="rounded-3xl border border-border/60 bg-card p-8 shadow-card">
-        <div className="flex items-start gap-4">
-          <span className="grid h-9 w-9 flex-none place-items-center rounded-xl bg-gradient-to-br from-primary-soft to-[var(--lavender)] text-sm font-extrabold text-primary">
-            {currentQ + 1}
-          </span>
-          <h3 className="text-lg font-bold pt-1">{q.question}</h3>
-        </div>
-
-        <div className="mt-6 grid gap-3">
-          {q.options?.map((opt, idx) => {
-            const isSelected = selected === idx;
-            return (
-              <button key={idx} onClick={() => handleSelect(idx)}
-                className={`flex items-center gap-3 rounded-2xl border p-4 text-left text-sm cursor-pointer transition-all ${isSelected ? "border-primary/60 bg-primary/5 shadow-sm" : "border-border/60 bg-card hover:border-primary/40 hover:bg-primary/5"}`}
-              >
-                <span className={`grid h-8 w-8 flex-none place-items-center rounded-full border text-xs font-bold transition ${isSelected ? "border-primary bg-primary text-primary-foreground scale-105" : "border-border text-muted-foreground"}`}>
-                  {String.fromCharCode(65 + idx)}
-                </span>
-                <span className="flex-1">{opt}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-8 flex justify-between items-center border-t border-border/60 pt-6">
-          <div className="flex items-center gap-2">
-            <span className={`grid h-8 w-8 place-items-center rounded-full text-xs font-bold transition-all ${
-              timer <= 1 ? "bg-red-500 text-white animate-pulse" :
-              timer <= 3 ? "bg-amber-500 text-white" :
-              "bg-primary/10 text-primary"
-            }`}>{timer}</span>
-            <span className="text-xs text-muted-foreground">
-              {selected !== null ? "Answer selected" : timer <= 1 ? "Time's almost up!" : "Seconds remaining"}
-            </span>
-          </div>
-          <button onClick={handleNext} disabled={selected === null || submitting}
-            className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft cursor-pointer hover:scale-[1.02] transition-transform disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {isLast ? "Submit Answers" : "Next"} <ArrowRight className="h-4 w-4" />
-          </button>
-        </div>
+      <div className="mt-8 flex justify-center">
+        <button onClick={onStart}
+          className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-soft cursor-pointer hover:scale-[1.02] transition-transform"
+        >
+          Start Essay <ArrowRight className="h-4 w-4" />
+        </button>
       </div>
     </div>
   );
 }
 
-/* ═══════════════════ Essay Module View ═══════════════════ */
+/* ═══════════════════ Assess View ═══════════════════ */
 
-function EssayModuleView({ module, trackTitle, categoryId, categoryLabel, categoryTint, onBack }: {
-  module: Module; trackTitle: string; categoryId: string; categoryLabel: string; categoryTint: string; onBack: () => void;
-}) {
+function AssessView({ module, categoryLabel, categoryTint, trackTitle }: { module: Module; categoryLabel: string; categoryTint: string; trackTitle: string }) {
   const [essayAnswers, setEssayAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [started, setStarted] = useState(false);
+  const [evaluations, setEvaluations] = useState<EvaluationResult[]>([]);
 
   const { address: walletAddress, isConnected } = useWalletConnection();
   const submitQuiz = useSubmitQuiz();
 
-  useEffect(() => { setLastModule(module.id); }, [module.id]);
-
-  const questions: EssayQuestion[] = module.essayQuestions!;
-  const totalPoints = questions.reduce((s, q) => s + q.points, 0);
+  const questions: EssayQuestion[] = module.essayQuestions;
 
   const chainResult = submitQuiz.isSuccess ? submitQuiz.data : undefined;
   const result = chainResult
     ? { score: chainResult.score, total: chainResult.max_score, grade: getGrade(chainResult.score, chainResult.max_score).grade }
     : undefined;
+
+  const hasEvals = evaluations.length === questions.length;
+
+  /* ── Save to localStorage so dashboard sees accepted tx ── */
+  useEffect(() => {
+    if (!result) return;
+    try {
+      const key = "lurna_local_scores";
+      const raw = localStorage.getItem(key);
+      const map: Record<string, any> = raw ? JSON.parse(raw) : {};
+      const pct = Math.round((result.score / result.total) * 100);
+      map[module.id] = {
+        module_id: module.id, category: categoryLabel, course: module.title,
+        score: result.score, max_score: result.total, percentage: pct,
+        passed: result.grade !== "F", grade: result.grade, earned_at: Date.now(),
+        pct,
+      };
+      localStorage.setItem(key, JSON.stringify(map));
+    } catch {}
+  }, [result, module.id]);
+
+  useEffect(() => {
+    if (!chainResult?.eval_start) return;
+    const evalStart = chainResult.eval_start;
+    let cancelled = false;
+    (async () => {
+      const evals: EvaluationResult[] = [];
+      for (let i = 0; i < questions.length; i++) {
+        try {
+          const e = await lurna.getEvaluation(evalStart + i);
+          if (e) evals.push(e);
+        } catch { break; }
+      }
+      if (!cancelled && evals.length === questions.length) setEvaluations(evals);
+    })();
+    return () => { cancelled = true; };
+  }, [chainResult, questions.length]);
 
   const handleEssayChange = useCallback((id: string, text: string) => {
     if (submitting || result) return;
@@ -536,206 +317,144 @@ function EssayModuleView({ module, trackTitle, categoryId, categoryLabel, catego
     setSubmitting(true);
     submitQuiz.mutate(
       {
-        student: walletAddress,
         moduleId: module.id,
         category: categoryLabel,
         course: module.title,
-        questionsJSON: JSON.stringify(newEssayQuestions(essayAnswers, questions)),
-        pointsPerQuestion: questions[0]?.points || 0,
+        answers: JSON.stringify(newEssayQuestions(essayAnswers, questions)),
+        questions: JSON.stringify(questions.map((q) => q.question)),
         moduleSummary: module.summary,
       },
-      {
-        onSettled: () => setSubmitting(false),
-      },
+      { onSettled: () => setSubmitting(false) },
     );
-  }, [walletAddress, module.id, categoryLabel, trackTitle, module.title, module.summary, essayAnswers, questions, submitQuiz, submitting]);
+  }, [walletAddress, module.id, categoryLabel, module.title, module.summary, essayAnswers, questions, submitQuiz, submitting]);
 
   const resetQuiz = useCallback(() => {
-    setEssayAnswers({}); setSubmitting(false); setStarted(false); submitQuiz.reset();
+    setEssayAnswers({}); setSubmitting(false); submitQuiz.reset();
   }, [submitQuiz]);
 
-  if (!started) {
-    return (
-      <div className="mx-auto max-w-4xl px-5 py-12 lg:px-8">
-        <button onClick={onBack} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground cursor-pointer mb-2">
-          <ChevronLeft className="h-4 w-4" /> All modules
-        </button>
-        <nav className="flex items-center gap-2 text-xs text-muted-foreground mb-6">
-          <button onClick={onBack} className="hover:text-foreground cursor-pointer transition">Modules</button>
-          <ChevronRight className="h-3 w-3" />
-          <span className="text-foreground font-medium">{module.title}</span>
-        </nav>
-        <div className="flex items-center gap-3 mb-3">
-          <div className={`grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br ${categoryTint} text-white`}>
-            <PenTool className="h-4 w-4" />
-          </div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{categoryLabel} · {trackTitle}</span>
-        </div>
-        <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">{module.title}</h1>
-
-        <div className="mt-10 grid gap-8 lg:grid-cols-3">
-          <div className="lg:col-span-2 rounded-3xl border border-border/60 bg-card p-8 shadow-card">
-            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" /> AI Summary
-            </h2>
-            <div className="text-sm leading-relaxed text-muted-foreground space-y-4 whitespace-pre-line">
-              {module.summary.split(/(?<=\.) /).map((s, i) => (
-                <p key={i}>{s}</p>
-              ))}
-            </div>
-          </div>
-
-          <div className="lg:col-span-1">
-            <div className="sticky top-24 rounded-3xl border border-border/60 bg-card p-6 text-center shadow-card">
-              <PenTool className="mx-auto h-8 w-8 text-primary" />
-              <h3 className="mt-4 text-xl font-extrabold">Essay</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{questions.length} essay questions · {totalPoints} pts</p>
-              <p className="text-xs text-muted-foreground">No time limit · Write freely</p>
-              {isConnected ? (
-                <button onClick={() => setStarted(true)}
-                  className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-full bg-gradient-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-soft cursor-pointer hover:scale-[1.02] transition-transform"
-                >
-                  Start Essay <ArrowRight className="h-4 w-4" />
-                </button>
-              ) : (
-                <button disabled
-                  className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-full bg-muted px-5 py-3 text-sm font-semibold text-muted-foreground cursor-not-allowed"
-                >
-                  <Wallet className="h-4 w-4" /> Connect Wallet to Start
-                </button>
-              )}
-              <div className="mt-5 text-left text-xs text-muted-foreground space-y-2">
-                <div className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-green-500/20 text-green-600 text-[10px] font-bold">{totalPoints}</span> total points</div>
-                <div className="flex items-center gap-2"><span className="grid h-5 w-5 place-items-center rounded-full bg-primary-soft text-primary text-[10px] font-bold">70%</span> to pass</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  /* ── Results ── */
 
   if (result) {
     const pct = Math.round((result.score / result.total) * 100);
     return (
-      <div className="mx-auto max-w-3xl px-5 py-12 lg:px-8">
-        <button onClick={onBack} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground cursor-pointer mb-2">
-          <ChevronLeft className="h-4 w-4" /> All modules
-        </button>
-        <div className="flex items-center gap-3 mb-3">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{categoryLabel} · {module.title}</span>
+      <div className="mt-6 rounded-3xl border border-border/60 bg-card p-10 text-center shadow-card">
+        <div className="mx-auto grid h-28 w-28 place-items-center rounded-full bg-gradient-primary text-4xl font-extrabold text-primary-foreground shadow-glow">
+          {pct}%
+        </div>
+        <h2 className="mt-5 text-3xl font-extrabold tracking-tight">
+          {result.score}/{result.total} · Grade {result.grade}
+        </h2>
+        {chainResult && (
+          <p className="mt-1 text-sm text-muted-foreground">{getGrade(chainResult.score, chainResult.max_score).label}</p>
+        )}
+        <div className="mx-auto mt-4 h-2.5 max-w-xs rounded-full bg-secondary">
+          <div className="h-full rounded-full bg-gradient-primary transition-all" style={{ width: `${pct}%` }} />
         </div>
 
-        <div className="rounded-3xl border border-border/60 bg-card p-10 text-center shadow-card">
-          <div className="mx-auto grid h-28 w-28 place-items-center rounded-full bg-gradient-primary text-4xl font-extrabold text-primary-foreground shadow-glow">
-            {pct}%
-          </div>
-          <h2 className="mt-5 text-3xl font-extrabold tracking-tight">
-            {result.score}/{result.total} · Grade {result.grade}
-          </h2>
-          {chainResult && (
-            <p className="mt-1 text-sm text-muted-foreground">{getGrade(chainResult.score, chainResult.max_score).label}</p>
-          )}
-          <div className="mx-auto mt-4 h-2.5 max-w-xs rounded-full bg-secondary">
-            <div className="h-full rounded-full bg-gradient-primary transition-all" style={{ width: `${pct}%` }} />
-          </div>
-
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <button onClick={resetQuiz} className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold cursor-pointer hover:bg-card/80 transition">
-              Retry Essay
-            </button>
-            <button onClick={onBack} className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold cursor-pointer hover:bg-card/80 transition">
-              All Modules
-            </button>
-            <Link to="/certificates"
-              search={{ module: module.title, score: String(result.score), total: String(result.total), grade: result.grade }}
-              className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft hover:scale-[1.02] transition-transform"
-            >
-              <Trophy className="h-4 w-4" /> View Certificate
-            </Link>
-          </div>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <button onClick={resetQuiz} className="rounded-full border border-border px-5 py-2.5 text-sm font-semibold cursor-pointer hover:bg-card/80 transition">
+            Retry Essay
+          </button>
+          <Link to="/certificates"
+            search={{ module: module.title, score: String(result.score), total: String(result.total), grade: result.grade }}
+            className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-soft hover:scale-[1.02] transition-transform"
+          >
+            <Trophy className="h-4 w-4" /> View Certificate
+          </Link>
         </div>
+
+        {hasEvals && (
+          <div className="mt-10 space-y-4 text-left">
+            <h3 className="text-lg font-bold">Per-Question Breakdown</h3>
+            {evaluations.map((ev, i) => (
+              <div key={i} className="rounded-2xl border border-border/50 bg-secondary/30 p-5">
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <span className="text-sm font-semibold">Q{i + 1}</span>
+                  <span className={`text-sm font-bold ${ev.score >= 70 ? "text-green-600" : ev.score >= 40 ? "text-amber-600" : "text-red-600"}`}>
+                    {ev.score}/100
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{ev.question}</p>
+                {ev.reasoning && (
+                  <div className="rounded-xl bg-card border border-border/30 px-4 py-3 text-sm text-muted-foreground">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-primary">AI Reasoning</span>
+                    <p className="mt-1">{ev.reasoning}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
+
+  /* ── Submitting ── */
 
   if (submitting) {
     return (
-      <div className="mx-auto max-w-3xl px-5 py-12 lg:px-8">
-        <div className="rounded-3xl border border-border/60 bg-card p-16 text-center shadow-card">
-          <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-primary/10">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          </div>
-          <h2 className="mt-6 text-xl font-extrabold">Waiting for AI Consensus...</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            GenLayer validators are evaluating your essay answers
-          </p>
+      <div className="mt-6 rounded-3xl border border-border/60 bg-card p-16 text-center shadow-card">
+        <div className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-primary/10">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
+        <h2 className="mt-6 text-xl font-extrabold">Waiting for AI Consensus...</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          GenLayer validators are evaluating your answers
+        </p>
       </div>
     );
   }
+
+  /* ── Error ── */
 
   if (submitQuiz.isError) {
     return (
-      <div className="mx-auto max-w-3xl px-5 py-12 lg:px-8">
-        <div className="rounded-3xl border border-red-500/30 bg-card p-16 text-center shadow-card">
-          <h2 className="text-xl font-extrabold text-red-600">Submission failed</h2>
-          <p className="mt-2 text-sm text-muted-foreground">{(submitQuiz.error as Error)?.message || "Unknown error"}</p>
-          <button onClick={resetQuiz} className="mt-6 rounded-full bg-gradient-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground cursor-pointer">
-            Try Again
-          </button>
-        </div>
+      <div className="mt-6 rounded-3xl border border-red-500/30 bg-card p-16 text-center shadow-card">
+        <h2 className="text-xl font-extrabold text-red-600">Submission failed</h2>
+        <p className="mt-2 text-sm text-muted-foreground">{(submitQuiz.error as Error)?.message || "Unknown error"}</p>
+        <button onClick={resetQuiz} className="mt-6 rounded-full bg-gradient-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground cursor-pointer">
+          Try Again
+        </button>
       </div>
     );
   }
 
+  /* ── Questions ── */
+
   return (
-    <div className="mx-auto max-w-4xl px-5 py-12 lg:px-8">
-      <button onClick={onBack} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground cursor-pointer mb-2">
-        <ChevronLeft className="h-4 w-4" /> All modules
-      </button>
-      <div className="flex items-center gap-3 mb-3">
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{categoryLabel} · {module.title}</span>
-      </div>
-
-      <div className="flex items-center gap-2 mb-6">
+    <div className="mt-6 space-y-6">
+      <div className="flex items-center gap-2 mb-2">
         <PenTool className="h-4 w-4 text-primary" />
-        <span className="text-sm text-muted-foreground">Answer all questions freely · No time limit</span>
+        <span className="text-sm text-muted-foreground">Answer all {questions.length} questions · No time limit · Be detailed and specific</span>
       </div>
 
-      <div className="space-y-6">
-        {questions.map((q, idx) => (
-          <div key={q.id} className="rounded-3xl border border-border/60 bg-card p-8 shadow-card">
-            <div className="flex items-start gap-4">
-              <span className="grid h-9 w-9 flex-none place-items-center rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/20 text-sm font-extrabold text-amber-600">
-                {idx + 1}
-              </span>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-amber-600">Essay</span>
-                  <span className="text-[11px] text-muted-foreground">{q.points} pts</span>
-                </div>
-                <h3 className="text-lg font-bold">{q.question}</h3>
-              </div>
-            </div>
-            <div className="mt-4">
-              <textarea
-                value={essayAnswers[q.id] ?? ""}
-                onChange={(e) => handleEssayChange(q.id, e.target.value)}
-                placeholder="Write your answer here..."
-                rows={6}
-                className="w-full rounded-2xl border border-border/60 bg-card p-4 text-sm outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 resize-y"
-              />
+      {questions.map((q, idx) => (
+        <div key={q.id} className="rounded-3xl border border-border/60 bg-card p-8 shadow-card">
+          <div className="flex items-start gap-4">
+            <span className="grid h-9 w-9 flex-none place-items-center rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/20 text-sm font-extrabold text-amber-600">
+              {idx + 1}
+            </span>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold">{q.question}</h3>
             </div>
           </div>
-        ))}
-      </div>
+          <div className="mt-4">
+            <textarea
+              value={essayAnswers[q.id] ?? ""}
+              onChange={(e) => handleEssayChange(q.id, e.target.value)}
+              placeholder="Write your answer here..."
+              rows={6}
+              className="w-full rounded-2xl border border-border/60 bg-card p-4 text-sm outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20 resize-y"
+            />
+          </div>
+        </div>
+      ))}
 
-      <div className="mt-8 flex justify-center">
-        <button onClick={handleSubmit} disabled={submitting}
+      <div className="flex justify-center">
+        <button onClick={handleSubmit} disabled={submitting || !isConnected}
           className="inline-flex items-center gap-2 rounded-full bg-gradient-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-soft cursor-pointer hover:scale-[1.02] transition-transform disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {submitting ? "Submitting..." : "Submit All Answers"} <ArrowRight className="h-4 w-4" />
+          {!isConnected ? "Connect Wallet to Submit" : submitting ? "Submitting..." : "Submit All Answers"} <ArrowRight className="h-4 w-4" />
         </button>
       </div>
     </div>

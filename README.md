@@ -44,7 +44,7 @@ Deployed on **GenLayer Bradbury** testnet.
 | **Chain ID** | `4221` (`0x107d`) |
 | **RPC** | `https://rpc-bradbury.genlayer.com` |
 | **Explorer** | [explorer-bradbury.genlayer.com](https://explorer-bradbury.genlayer.com) |
-| **Contract** | `0x84Bd8c73869719059f946dED8175b9b56116F810` |
+| **Contract** | `0xBf717dBb698452b19f95363a15809AE2CBD8a76B` |
 | **Source** | `contracts/Lurna.py` |
 
 A single unified Python contract handles:
@@ -54,7 +54,6 @@ A single unified Python contract handles:
 - Leaderboard ranking
 - NFT certificate minting and verification
 - Display name registration
-- Admin transfer
 
 ---
 
@@ -62,12 +61,12 @@ A single unified Python contract handles:
 
 | Feature | Description |
 |---------|-------------|
-| **AI Consensus Grading** | Each essay answer is evaluated by `exec_prompt` with multi-agent validation. Leader runs AI evaluation; validators independently re-run `exec_prompt` (different AI model) and compare scores within ±25 tolerance. |
+| **AI Consensus Grading** | Each essay answer is evaluated by `exec_prompt` with multi-agent validation. Leader runs AI evaluation; validators independently re-run `exec_prompt` (different AI model) and compare scores within ±20 tolerance. |
 | **On-Chain Certificates** | NFT-style credentials minted for every passing essay (score ≥ 70%). Stored permanently in `TreeMap[u256, str]` with student, course, category, score, grade, tier, and timestamp. |
 | **Leaderboard** | Aggregates per-module best scores across all students. Sorted by total percentage. Displays student address, handle (display name), modules passed, certificates earned, and highest grade. |
 | **Wallet Authentication** | EIP-1193 compatible — MetaMask, Rabby, Coinbase Wallet, Brave Wallet, Trust Wallet, and generic browser wallets. Wallet selection modal on "Sign In". |
 | **Display Names** | On-chain handle registration. Saved to contract via `set_display_name`, cached in localStorage for fast dashboard loading. |
-| **Essay-Only** | All 151 modules use scenario-based essay questions (5 per module). No MCQ, no answer key — AI grades purely on depth, clarity, critical thinking, originality, and detail. |
+| **Essay-Only** | All 154 modules use scenario-based essay questions (3 per module). No MCQ, no answer key — AI grades purely on depth, clarity, critical thinking, originality, and detail. |
 
 ---
 
@@ -176,13 +175,13 @@ lurna/
 ### Essay Flow
 
 ```
-User selects module → Read summary (Learn tab) → Answer 5 essay questions (Assess tab)
+User selects module → Read summary (Learn tab) → Answer 3 essay questions (Assess tab)
         ↓
 All answers submitted → submit_quiz() called on contract (sender bound via gl.message.sender_address)
         ↓
-Leader: exec_prompt(prompt) → AI evaluates all 5 essays (critical teacher, grades 0–100)
+Leader: exec_prompt(prompt) → AI evaluates all 3 essays (critical teacher, grades 0–100)
         ↓
-Validator: independently re-runs exec_prompt (different AI model) → compares scores with ±25 tolerance
+Validator: independently re-runs exec_prompt (different AI model) → compares scores with ±20 tolerance
         ↓
 Consensus reached → Scores recorded → Best score updated → Certificate minted if ≥70%
         ↓
@@ -213,8 +212,19 @@ Receipt parsed on frontend → Attempt result displayed
 | Function | Parameters | Description |
 |----------|-----------|-------------|
 | `submit_quiz(module_id, category, course, answers, module_summary)` | Module + answers (JSON) | Submit essay for AI Consensus evaluation; sender bound via `gl.message.sender_address` |
-| `set_display_name(student, name)` | Address + name | Register on-chain display name |
-| `transfer_admin(new_admin)` | New admin address | Transfer contract ownership |
+| `set_display_name(name)` | Name | Register on-chain display name; sender bound via `gl.message.sender_address` |
+
+### Anti-Cheat: Hash-Verified Questions
+
+The full curriculum (154 modules × 3 essay questions) is too large to store on-chain (~250KB). Instead, Lurna stores only a **rolling hash** of each module's questions (~5KB):
+
+```
+Module "what-is-genlayer" → hash("["What is GenLayer?","How does it work?","Why does it matter?"]") = "2140921743"
+```
+
+When a student submits, the caller **must send both answers and questions**. The contract recomputes `_checksum(questions)` and rejects the submission if it doesn't match the stored hash. This prevents anyone from fabricating easier questions — the hash is immutable on-chain, and a mismatch returns `"Question hash mismatch"` before any AI evaluation runs.
+
+The `_checksum` function uses a polynomial rolling hash (`h = (h × 31 + ord(c)) & 0xFFFFFFFF`) — deterministic, no imports, and identical between the JS hash generator and the Python contract.
 
 ### Consensus Pattern
 
@@ -232,7 +242,7 @@ def validator_fn(leader_res) -> bool:
     # Re-run with different AI model to cross-validate
     recheck = _parse_ai_scores(gl.nondet.exec_prompt(prompt))
     for i, s in enumerate(scores):
-        if i < len(recheck) and abs(s - recheck[i]) > 25:
+        if i < len(recheck) and abs(s - recheck[i]) > 20:
             return False
     return True
 ```

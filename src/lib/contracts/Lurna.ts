@@ -296,12 +296,13 @@ class LurnaContract {
     category: string,
     course: string,
     answers: string,
+    questions: string,
     moduleSummary: string,
   ): Promise<TransactionResult<QuizAttempt>> {
     const countBefore = await this.getTotalAttempts();
 
     const result = await this.writeAndWait("submit_quiz", [
-      moduleId, category, course, answers, moduleSummary,
+      moduleId, category, course, answers, questions, moduleSummary,
     ]);
 
     if (!result.success) return { success: false, error: result.error || "Unknown error" };

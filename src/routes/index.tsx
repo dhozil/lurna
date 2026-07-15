@@ -161,7 +161,7 @@ function Features() {
     { icon: iconLearn, title: "AI Summary Learning", desc: "Long material is distilled by AI into short, structured modules that are easy to digest at any level.", tint: "from-[oklch(0.94_0.06_180)] to-[oklch(0.88_0.1_175)]" },
     { icon: iconRocket, title: "Personalized Feedback", desc: "Find out exactly where you're strong, where you're weak, and what to study next.", tint: "from-[oklch(0.95_0.08_15)] to-[oklch(0.88_0.13_12)]" },
     { icon: iconGlobe, title: "Proof of Knowledge Profile", desc: "A public profile showcasing every on-chain credential you've earned — shareable with recruiters and peers.", tint: "from-[oklch(0.93_0.07_245)] to-[oklch(0.86_0.11_245)]" },
-    { icon: iconAi, title: "Smart Quiz Engine", desc: "Multiple choice, essay, case study, or coding challenge — each graded by AI in the right way.", tint: "from-[oklch(0.94_0.05_300)] to-[oklch(0.88_0.09_295)]" },
+    { icon: iconAi, title: "Essay Grading Engine", desc: "Scenario-based essay questions evaluated by multi-agent AI consensus — depth and reasoning matter, not memorization.", tint: "from-[oklch(0.94_0.05_300)] to-[oklch(0.88_0.09_295)]" },
   ];
 
   return (
@@ -187,7 +187,7 @@ function HowItWorks() {
   const steps = [
     { n: "01", icon: BookOpen, title: "Choose a Category", desc: "Start from Blockchain, AI, Web3, Programming, and many more." },
     { n: "02", icon: Sparkles, title: "Read AI Summary", desc: "Concise modules curated by AI and subject experts." },
-    { n: "03", icon: BrainCircuit, title: "Take the Quiz", desc: "Multiple-choice questions that test your understanding of the material." },
+    { n: "03", icon: BrainCircuit, title: "Write Your Essay", desc: "Scenario-based essay questions that test your understanding, reasoning, and depth of knowledge." },
     { n: "04", icon: ShieldCheck, title: "AI Consensus Grades", desc: "Multi-agent AI evaluates and decides your final score." },
     { n: "05", icon: Trophy, title: "Certificate Minted", desc: "Pass and your NFT credential lands in your wallet." },
     { n: "06", icon: Globe, title: "Public Verification", desc: "Share your Proof of Knowledge link with anyone." },

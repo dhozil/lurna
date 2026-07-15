@@ -69,7 +69,7 @@ export function useSetDisplayName() {
   return useMutation({
     mutationFn: async (name: string) => {
       if (!wallet.address) throw new Error("Wallet not connected");
-      const result = await lurna.setDisplayName(wallet.address, name);
+      const result = await lurna.setDisplayName(name);
       if (!result.success) throw new Error(result.error);
       localStorage.setItem(STORAGE_KEY, name);
     },
@@ -86,23 +86,20 @@ export function useSubmitQuiz() {
 
   return useMutation({
     mutationFn: async (params: {
-      student: string;
       moduleId: string;
       category: string;
       course: string;
-      questionsJSON: string;
-      pointsPerQuestion: number;
+      answers: string;
+      questions: string;
       moduleSummary: string;
     }): Promise<QuizAttempt> => {
       if (!wallet.address) throw new Error("Wallet not connected");
       const result = await lurna.submitQuiz(
-        wallet.address,
-        params.student,
         params.moduleId,
         params.category,
         params.course,
-        params.questionsJSON,
-        params.pointsPerQuestion,
+        params.answers,
+        params.questions,
         params.moduleSummary,
       );
       if (!result.success) throw new Error(result.error);

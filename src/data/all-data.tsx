@@ -10,7 +10,6 @@ import {
   BtcIcon,
 } from "./content";
 import type {
-  Question,
   EssayQuestion,
   Module,
   Track,
@@ -28,7 +27,6 @@ export {
 };
 
 export type {
-  Question,
   EssayQuestion,
   Module,
   Track,

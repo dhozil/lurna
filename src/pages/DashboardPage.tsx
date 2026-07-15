@@ -8,8 +8,8 @@ import {
 import { getAllModules, getModuleById } from "@/data/all-data";
 import laptopImg from "@/assets/laptop.png";
 import { useWalletConnection, useDisplayName, useSetDisplayName, useStudentBestScores, useStudentCertificates } from "@/hooks/useLurnaContracts";
-import { getBestScores, getLastModule } from "@/lib/quiz-utils";
-import { useState, useEffect } from "react";
+import { getLastModule } from "@/lib/quiz-utils";
+import { useState, useEffect, useMemo } from "react";
 
 export default function DashboardPage() {
   return <SiteShell><Dashboard /></SiteShell>;
@@ -22,27 +22,39 @@ function Dashboard() {
   const { data: chainScores } = useStudentBestScores(isConnected ? address : null);
   const { data: chainCerts } = useStudentCertificates(isConnected ? address : null);
 
-  const [bestScores, setBestScores] = useState<Record<string, any>>({});
   const [lastId, setLastId] = useState<string | null>(null);
 
   useEffect(() => {
-    setBestScores(getBestScores());
     setLastId(getLastModule());
   }, []);
 
-  const localArr = Object.entries(bestScores).map(([moduleId, data]) => ({ moduleId, ...data }));
-  const chainArr = chainScores ? Object.entries(chainScores).map(([moduleId, data]) => ({ moduleId, ...data })) : [];
-
-  const bestArr = isConnected && chainArr.length > 0 ? chainArr : localArr;
+  /* ── Merge local (accepted-but-not-finalized) + chain data ── */
+  const bestArr = useMemo(() => {
+    const map: Record<string, any> = {};
+    // 1) local scores from accepted submissions
+    try {
+      const raw = localStorage.getItem("lurna_local_scores");
+      if (raw) {
+        for (const [mid, d] of Object.entries(JSON.parse(raw))) {
+          if (d && typeof d === "object") map[mid] = { moduleId: mid, ...(d as any) };
+        }
+      }
+    } catch {}
+    // 2) chain scores (finalized) — overwrites local
+    if (chainScores) {
+      for (const [mid, d] of Object.entries(chainScores)) {
+        map[mid] = { moduleId: mid, ...(d as any) };
+      }
+    }
+    return Object.values(map);
+  }, [chainScores]);
   const lastMod = lastId ? getModuleById(lastId) : null;
 
   const completedCount = bestArr.length;
   const avgScore = bestArr.length
-    ? Math.round(bestArr.reduce((s, r) => s + r.pct || r.percentage, 0) / bestArr.length)
+    ? Math.round(bestArr.reduce((s, r) => s + (r.pct ?? r.percentage ?? 0), 0) / bestArr.length)
     : 0;
-  const passedCount = isConnected && chainCerts
-    ? chainCerts.length
-    : bestArr.filter((r) => r.grade !== "F").length;
+  const passedCount = bestArr.filter((r) => r.grade !== "F").length;
 
   return (
     <div className="mx-auto max-w-[90rem] px-5 py-12 lg:px-8">
