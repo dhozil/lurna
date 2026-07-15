@@ -61,7 +61,7 @@ A single unified Python contract handles:
 
 | Feature | Description |
 |---------|-------------|
-| **AI Consensus Grading** | Each essay answer is evaluated by `exec_prompt` with multi-agent validation. Leader runs AI evaluation; validators independently re-run `exec_prompt` (different AI model) and compare scores within ±20 tolerance. |
+| **AI Consensus Grading** | Each essay answer is evaluated by `exec_prompt` with multi-agent validation. Leader runs AI evaluation; validators independently re-run `exec_prompt` (different AI model) and cross-validate scores for consistency. |
 | **On-Chain Certificates** | NFT-style credentials minted for every passing essay (score ≥ 70%). Stored permanently in `TreeMap[u256, str]` with student, course, category, score, grade, tier, and timestamp. |
 | **Leaderboard** | Aggregates per-module best scores across all students. Sorted by total percentage. Displays student address, handle (display name), modules passed, certificates earned, and highest grade. |
 | **Wallet Authentication** | EIP-1193 compatible — MetaMask, Rabby, Coinbase Wallet, Brave Wallet, Trust Wallet, and generic browser wallets. Wallet selection modal on "Sign In". |
@@ -181,7 +181,7 @@ All answers submitted → submit_quiz() called on contract (sender bound via gl.
         ↓
 Leader: exec_prompt(prompt) → AI evaluates all 3 essays (critical teacher, grades 0–100)
         ↓
-Validator: independently re-runs exec_prompt (different AI model) → compares scores with ±20 tolerance
+Validator: independently re-runs exec_prompt (different AI model) → cross-validates scores for consistency
         ↓
 Consensus reached → Scores recorded → Best score updated → Certificate minted if ≥70%
         ↓
@@ -242,7 +242,7 @@ def validator_fn(leader_res) -> bool:
     # Re-run with different AI model to cross-validate
     recheck = _parse_ai_scores(gl.nondet.exec_prompt(prompt))
     for i, s in enumerate(scores):
-        if i < len(recheck) and abs(s - recheck[i]) > 20:
+        if i < len(recheck) and not _scores_agree(s, recheck[i]):
             return False
     return True
 ```

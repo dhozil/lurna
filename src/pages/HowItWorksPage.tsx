@@ -50,7 +50,7 @@ export default function HowItWorksPage() {
             {[
               { t: "Submit Essay", d: "Your answers are sent to the GenLayer contract, which binds the submission to your wallet.", c: "1 tx · instant" },
               { t: "AI Leader Evaluates", d: "The leader runs exec_prompt with a grading rubric — each essay scored 0–100 with written reasoning.", c: "1 AI agent · ~5s" },
-              { t: "Validators Cross-Check", d: "Each validator independently re-runs exec_prompt with their own AI model, comparing scores within ±20 tolerance.", c: "3 AI agents · ~5s" },
+              { t: "Validators Cross-Check", d: "Each validator independently re-runs exec_prompt with their own AI model, cross-validating scores for consistency.", c: "3 AI agents · ~5s" },
               { t: "Consensus Reached", d: "If supermajority agrees, the score is finalized, best score updated, and certificate minted on-chain.", c: "≥75% agreement" },
             ].map((q) => (
               <div key={q.t} className="rounded-3xl border border-border/60 bg-card p-7 shadow-card">
