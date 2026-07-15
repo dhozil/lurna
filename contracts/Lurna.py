@@ -487,21 +487,37 @@ class Lurna(gl.Contract):
         for i in range(num_q):
             sa = str(student_answers[i]).strip() if i < len(student_answers) else ""
             parts.append(f"Q{i+1}: {str(questions[i])}\nA: {'(no answer)' if not sa else sa}")
-        prompt = "\n".join(parts) + "\n\nFor each essay write a brief evaluation then give score.\nFormat:\nEssay 1: Strong analysis... Score: 85\nEssay 2: Lacks depth... Score: 72\nEssay 3: Good arguments... Score: 91"
+        prompt = "\n".join(parts) + "\n\nReturn ONLY a JSON array with no extra text:\n[\n  {\"score\": 85, \"reasoning\": \"brief evaluation\"},\n  {\"score\": 72, \"reasoning\": \"brief evaluation\"},\n  {\"score\": 91, \"reasoning\": \"brief evaluation\"}\n]"
 
         def leader_fn() -> list:
             try:
                 raw = gl.nondet.exec_prompt(prompt)
                 if isinstance(raw, str):
+                    raw_clean = raw.strip()
+                    if raw_clean.startswith("```"):
+                        raw_clean = raw_clean.split("\n", 1)[-1]
+                        if raw_clean.endswith("```"):
+                            raw_clean = raw_clean[:-3].strip()
+                    try:
+                        parsed = json.loads(raw_clean)
+                        if isinstance(parsed, list) and len(parsed) == num_q:
+                            out = []
+                            for i in range(num_q):
+                                item = parsed[i]
+                                sv = int(item.get("score", 0)) if isinstance(item, dict) else 0
+                                sv = max(0, min(100, sv))
+                                r = str(item.get("reasoning", "")) if isinstance(item, dict) else ""
+                                out.append({"score": sv, "reasoning": r})
+                            return out
+                    except:
+                        pass
                     import re as _re
-                    scores = _re.findall(r"Score:\s*(\d+)", raw)
+                    scores = _re.findall(r"score[\":\s]+(\d+)", raw, _re.IGNORECASE)
                     if len(scores) >= num_q:
-                        reasoning = _re.split(r"Score:\s*\d+", raw)
                         out = []
                         for i in range(num_q):
                             sv = max(0, min(100, int(scores[i])))
-                            r = reasoning[i].strip() if i < len(reasoning) else ""
-                            out.append({"score": sv, "reasoning": r})
+                            out.append({"score": sv, "reasoning": ""})
                         return out
             except:
                 pass

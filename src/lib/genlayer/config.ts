@@ -9,7 +9,7 @@ const chainMap = {
 };
 
 const BRADBURY_RPC = "https://rpc-bradbury.genlayer.com";
-const BRADBURY_CONTRACT = "0xBf717dBb698452b19f95363a15809AE2CBD8a76B";
+const BRADBURY_CONTRACT = "0x26069691307b5a2EfB984f178a0d77B5E2B5366A";
 
 function getNetwork(): GenLayerNetwork {
   const v = import.meta.env.VITE_GENLAYER_NETWORK;
