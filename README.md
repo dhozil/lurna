@@ -228,23 +228,34 @@ The `_checksum` function uses a polynomial rolling hash (`h = (h × 31 + ord(c))
 
 ### Consensus Pattern
 
-Lurna uses a **cross-validation pattern** — the leader evaluates essays via AI, and validators independently re-run the same prompt with their own AI model:
+Lurna uses `gl.vm.run_nondet_unsafe` — the leader evaluates essays via AI, and validators independently re-run the same prompt with their own AI model, then compare scores:
 
 ```python
 def leader_fn() -> list:
-    result = gl.nondet.exec_prompt(prompt)
-    return _parse_ai_scores(result)
+    raw = gl.nondet.exec_prompt(prompt)
+    # AI returns JSON array of {"score": N, "reasoning": "..."}
+    try:
+        return json.loads(raw_clean)
+    except:
+        # Fallback: regex for "score: N"
+        scores = re.findall(r"score[\":\s]+(\d+)", raw, re.I)
+        return [{"score": s, "reasoning": ""} for s in scores]
 
 def validator_fn(leader_res) -> bool:
     if not isinstance(leader_res, gl.vm.Return): return False
-    scores = leader_res.data
-    if not _validate_scores(scores): return False
-    # Re-run with different AI model to cross-validate
-    recheck = _parse_ai_scores(gl.nondet.exec_prompt(prompt))
-    for i, s in enumerate(scores):
-        if i < len(recheck) and not _scores_agree(s, recheck[i]):
+    leader_data = leader_res.calldata
+    if len(leader_data) != num_q: return False
+    mine = leader_fn()  # Re-run with different AI model
+    if len(mine) != num_q: return False
+    # Both returned all zeros = agree on failure
+    if all(s == 0 for s in leader_data) and all(s == 0 for s in mine):
+        return True
+    for i in range(num_q):
+        if not _scores_agree(leader_data[i]["score"], mine[i]["score"]):
             return False
     return True
+
+result = gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
 ```
 
 ---
