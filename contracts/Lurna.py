@@ -5,41 +5,41 @@ import json
 
 
 MODULE_HASHES = {
-    "what-is-genlayer": "2140921743",
-    "optimistic-democracy": "1247498061",
-    "intelligent-contracts": "3256757919",
+"what-is-genlayer": "2623820666",
+    "optimistic-democracy": "985185969",
+    "intelligent-contracts": "4041795474",
     "use-cases": "2038760605",
-    "genlayer-fundamentals-essay-1": "433656702",
-    "genlayer-fundamentals-essay-2": "3624856613",
-    "genlayer-fundamentals-essay-3": "3808802820",
+    "genlayer-fundamentals-essay-1": "2581032219",
+    "genlayer-fundamentals-essay-2": "1479463283",
+    "genlayer-fundamentals-essay-3": "3985129270",
     "what-is-blockchain": "3303368022",
-    "consensus-mechanisms": "1981790548",
-    "blocks-transactions": "1066767619",
+    "consensus-mechanisms": "1563080575",
+    "blocks-transactions": "1959500932",
     "blockchain-use-cases": "2703470420",
     "blockchain-fundamentals-essay-1": "3452789907",
     "blockchain-fundamentals-essay-2": "127668626",
-    "blockchain-fundamentals-essay-3": "89387907",
-    "what-are-smart-contracts": "2060947760",
+    "blockchain-fundamentals-essay-3": "1714218282",
+    "what-are-smart-contracts": "3789000933",
     "solidity-basics": "3402094500",
     "security-best-practices": "3762185479",
     "real-world-applications": "2465555272",
     "smart-contract-fundamentals-essay-1": "3888267613",
-    "smart-contract-fundamentals-essay-2": "4059276497",
+    "smart-contract-fundamentals-essay-2": "3228275203",
     "smart-contract-fundamentals-essay-3": "3961737901",
     "crypto-basics": "2587577773",
-    "wallets-transactions": "2469009763",
+    "wallets-transactions": "420772899",
     "security-storage": "3552766181",
-    "markets-trading": "390691109",
-    "crypto-fundamentals-essay-1": "1834200013",
+    "markets-trading": "75715671",
+    "crypto-fundamentals-essay-1": "2790153726",
     "crypto-fundamentals-essay-2": "4186025260",
-    "crypto-fundamentals-essay-3": "3393809156",
-    "ai-intro": "952941462",
-    "machine-learning": "1677972803",
+    "crypto-fundamentals-essay-3": "1293922998",
+    "ai-intro": "859929846",
+    "machine-learning": "2251541621",
     "neural-networks": "1345373540",
-    "ai-ethics": "2493474818",
+    "ai-ethics": "1236414753",
     "ai-fundamentals-essay-1": "2807624337",
     "ai-fundamentals-essay-2": "1316916760",
-    "ai-fundamentals-essay-3": "1036304382",
+    "ai-fundamentals-essay-3": "964768866",
     "sol-intro": "2485036489",
     "sol-inheritance": "2533370186",
     "sol-gas": "2549345678",
@@ -159,7 +159,6 @@ MODULE_HASHES = {
     "design-systems-essay-1": "3712021125",
     "design-systems-essay-2": "2385990389",
     "design-systems-essay-3": "2457877527"
-
 }
 
 
@@ -586,3 +585,4 @@ class Lurna(gl.Contract):
     @gl.public.view
     def get_display_name(self, address: str) -> str:
         return self.display_names.get(address, "")
+
