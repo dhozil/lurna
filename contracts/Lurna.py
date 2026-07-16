@@ -511,6 +511,7 @@ class Lurna(gl.Contract):
                 parts = text.split("|")
                 if len(parts) >= num_q:
                     out = []
+                    has_valid = False
                     for i in range(num_q):
                         nums = _re.findall(r"\b(\d{1,3})\b", parts[i])
                         val = 0
@@ -518,9 +519,11 @@ class Lurna(gl.Contract):
                             iv = int(n)
                             if 0 <= iv <= 100:
                                 val = iv
+                                has_valid = True
                                 break
                         out.append({"score": val, "reasoning": parts[i].strip()})
-                    return out
+                    if has_valid:
+                        return out
                 nums = _re.findall(r"\b(\d{1,3})\b", text)
                 numeric = [int(s) for s in nums if 0 <= int(s) <= 100]
                 if len(numeric) >= num_q:
