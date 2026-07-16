@@ -483,11 +483,11 @@ class Lurna(gl.Contract):
         return result
 
     def _evaluate_all(self, summary: str, questions, student_answers, num_q: int) -> str:
-        parts = [f"Grade {num_q} essays. Module: {summary}"]
+        parts = [f"Grade {num_q} essays 0-100.", f"Module: {summary}"]
         for i in range(num_q):
             sa = str(student_answers[i]).strip() if i < len(student_answers) else ""
-            parts.append(f"\nEssay {i+1}:\nQuestion: {str(questions[i])}\nAnswer: {'(no answer)' if not sa else sa}")
-        prompt = "\n".join(parts) + "\n\nFor each essay, respond with EXACTLY one line:\nSCORE: <0-100>\nREASONING: <brief>\n\nExample:\nSCORE: 85\nREASONING: Good analysis with clear examples\n\nNow grade all essays one by one:"
+            parts.append(f"Q{i+1}: {str(questions[i])}\nA: {'(no answer)' if not sa else sa}")
+        prompt = "\n".join(parts) + "\n\nReturn ONLY a JSON array with no extra text:\n[\n  {\"score\": 85, \"reasoning\": \"brief evaluation\"},\n  {\"score\": 72, \"reasoning\": \"brief evaluation\"}\n]"
 
         def leader_fn() -> list:
             try:
@@ -498,6 +498,19 @@ class Lurna(gl.Contract):
                     text = text.split("\n", 1)[-1]
                     if text.endswith("```"):
                         text = text[:-3].strip()
+                try:
+                    parsed = json.loads(text)
+                    if isinstance(parsed, list) and len(parsed) == num_q:
+                        out = []
+                        for i in range(num_q):
+                            item = parsed[i]
+                            sv = int(item.get("score", 0)) if isinstance(item, dict) else 0
+                            sv = max(0, min(100, sv))
+                            r = str(item.get("reasoning", "")) if isinstance(item, dict) else ""
+                            out.append({"score": sv, "reasoning": r})
+                        return out
+                except:
+                    pass
                 scores = _re.findall(r"SCORE\s*:\s*(\d+)", text, _re.IGNORECASE)
                 if len(scores) >= num_q:
                     out = []
