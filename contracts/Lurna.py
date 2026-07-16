@@ -242,19 +242,16 @@ class Lurna(gl.Contract):
         return "{}"
 
     @gl.public.view
-    def get_student_attempts(self, student: str) -> str:
-        addr = Address(student)
-        return self.student_attempts.get(addr, "[]")
+    def get_student_attempts(self, student: Address) -> str:
+        return self.student_attempts.get(student, "[]")
 
     @gl.public.view
-    def get_student_best_scores(self, student: str) -> str:
-        addr = Address(student)
-        return self.best_scores.get(addr, "{}")
+    def get_student_best_scores(self, student: Address) -> str:
+        return self.best_scores.get(student, "{}")
 
     @gl.public.view
-    def get_student_total_best_score(self, student: str) -> u256:
-        addr = Address(student)
-        return self.total_best_scores.get(addr, u256(0))
+    def get_student_total_best_score(self, student: Address) -> u256:
+        return self.total_best_scores.get(student, u256(0))
 
     @gl.public.view
     def get_leaderboard(self, limit: u256) -> str:
@@ -304,9 +301,8 @@ class Lurna(gl.Contract):
         return "{}"
 
     @gl.public.view
-    def get_student_certificates(self, student: str) -> str:
-        addr = Address(student)
-        ids_str = self.student_certs.get(addr, "[]")
+    def get_student_certificates(self, student: Address) -> str:
+        ids_str = self.student_certs.get(student, "[]")
         try:
             ids = json.loads(ids_str)
         except:
@@ -587,7 +583,6 @@ class Lurna(gl.Contract):
         return json.dumps({"name": name, "address": student.as_hex})
 
     @gl.public.view
-    def get_display_name(self, address: str) -> str:
-        addr = Address(address)
-        return self.display_names.get(addr, "")
+    def get_display_name(self, address: Address) -> str:
+        return self.display_names.get(address, "")
 
