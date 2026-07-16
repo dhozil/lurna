@@ -276,7 +276,7 @@ function AssessView({ module, categoryLabel, categoryTint, trackTitle }: { modul
   useEffect(() => {
     if (!result) return;
     try {
-      const key = "lurna_local_scores";
+      const key = "lurna_local_scores_" + walletAddress;
       const raw = localStorage.getItem(key);
       const map: Record<string, any> = raw ? JSON.parse(raw) : {};
       const pct = Math.round((result.score / result.total) * 100);

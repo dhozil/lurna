@@ -46,7 +46,7 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
   const allCerts = useMemo(() => {
     const map: Record<string, any> = {};
     try {
-      const raw = localStorage.getItem("lurna_local_scores");
+      const raw = walletAddress ? localStorage.getItem("lurna_local_scores_" + walletAddress) : null;
       if (raw) {
         for (const d of Object.values(JSON.parse(raw))) {
           const entry = d as Record<string, any>;
@@ -73,7 +73,7 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
       }
     }
     return Object.values(map);
-  }, [chainCerts]);
+  }, [chainCerts, walletAddress]);
 
   /* ── Certificate preview from quiz result ── */
   if (certData) {

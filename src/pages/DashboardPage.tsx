@@ -28,12 +28,27 @@ function Dashboard() {
     setLastId(getLastModule());
   }, []);
 
+  /* ── Migrate old per-domain key to wallet-scoped key ── */
+  useEffect(() => {
+    if (!address) return;
+    const oldKey = "lurna_local_scores";
+    const newKey = oldKey + "_" + address;
+    const oldRaw = localStorage.getItem(oldKey);
+    if (oldRaw) {
+      const newRaw = localStorage.getItem(newKey);
+      if (!newRaw) {
+        localStorage.setItem(newKey, oldRaw);
+      }
+      localStorage.removeItem(oldKey);
+    }
+  }, [address]);
+
   /* ── Merge local (accepted-but-not-finalized) + chain data ── */
   const bestArr = useMemo(() => {
     const map: Record<string, any> = {};
     // 1) local scores from accepted submissions
     try {
-      const raw = localStorage.getItem("lurna_local_scores");
+      const raw = address ? localStorage.getItem("lurna_local_scores_" + address) : null;
       if (raw) {
         for (const [mid, d] of Object.entries(JSON.parse(raw))) {
           if (d && typeof d === "object") map[mid] = { moduleId: mid, ...(d as any) };
@@ -47,7 +62,7 @@ function Dashboard() {
       }
     }
     return Object.values(map);
-  }, [chainScores]);
+  }, [chainScores, address]);
   const lastMod = lastId ? getModuleById(lastId) : null;
 
   const completedCount = bestArr.length;
