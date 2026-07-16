@@ -2,6 +2,7 @@
 
 from genlayer import *
 import json
+import re as _re
 
 
 MODULE_HASHES = {
@@ -497,7 +498,6 @@ class Lurna(gl.Contract):
                     text = text.split("\n", 1)[-1]
                     if text.endswith("```"):
                         text = text[:-3].strip()
-                import re as _re
                 scores = _re.findall(r"SCORE\s*:\s*(\d+)", text, _re.IGNORECASE)
                 if len(scores) >= num_q:
                     out = []
@@ -545,7 +545,10 @@ class Lurna(gl.Contract):
                 return False
             if n != num_q:
                 return False
-            mine = leader_fn()
+            try:
+                mine = leader_fn()
+            except:
+                return False
             try:
                 mn = len(mine)
             except:
