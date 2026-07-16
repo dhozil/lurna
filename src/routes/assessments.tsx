@@ -315,6 +315,19 @@ function AssessView({ module, categoryLabel, categoryTint, trackTitle }: { modul
   const handleSubmit = useCallback(() => {
     if (!walletAddress || submitting) return;
     setSubmitting(true);
+    /* ── Save to localStorage immediately (optimistic), before finalization ── */
+    try {
+      const key = "lurna_local_scores_" + walletAddress;
+      const raw = localStorage.getItem(key);
+      const map: Record<string, any> = raw ? JSON.parse(raw) : {};
+      map[module.id] = {
+        module_id: module.id, category: categoryLabel, course: module.title,
+        score: 0, max_score: questions.length * 100, percentage: 0,
+        passed: false, grade: "?", earned_at: Date.now(),
+        pct: 0, pending: true,
+      };
+      localStorage.setItem(key, JSON.stringify(map));
+    } catch {}
     submitQuiz.mutate(
       {
         moduleId: module.id,
