@@ -170,15 +170,15 @@ class Lurna(gl.Contract):
 
     # ── Scores & leaderboard ──
     all_attempts: TreeMap[u256, str]
-    student_attempts: TreeMap[str, str]
-    best_scores: TreeMap[str, str]
-    total_best_scores: TreeMap[str, u256]
-    leaderboard_students: DynArray[str]
+    student_attempts: TreeMap[Address, str]
+    best_scores: TreeMap[Address, str]
+    total_best_scores: TreeMap[Address, u256]
+    leaderboard_students: DynArray[Address]
     total_attempts: u256
 
     # ── Certificates ──
     certificates: TreeMap[u256, str]
-    student_certs: TreeMap[str, str]
+    student_certs: TreeMap[Address, str]
     student_module_certs: TreeMap[str, str]  # "student:module_id" -> cert_id
     total_supply: u256
 
@@ -186,7 +186,7 @@ class Lurna(gl.Contract):
     module_hashes: TreeMap[str, str]
 
     # ── Display names ──
-    display_names: TreeMap[str, str]
+    display_names: TreeMap[Address, str]
 
     def __init__(self):
         self.total_evaluations = 0
@@ -243,15 +243,18 @@ class Lurna(gl.Contract):
 
     @gl.public.view
     def get_student_attempts(self, student: str) -> str:
-        return self.student_attempts.get(student, "[]")
+        addr = Address(student)
+        return self.student_attempts.get(addr, "[]")
 
     @gl.public.view
     def get_student_best_scores(self, student: str) -> str:
-        return self.best_scores.get(student, "{}")
+        addr = Address(student)
+        return self.best_scores.get(addr, "{}")
 
     @gl.public.view
     def get_student_total_best_score(self, student: str) -> u256:
-        return self.total_best_scores.get(student, u256(0))
+        addr = Address(student)
+        return self.total_best_scores.get(addr, u256(0))
 
     @gl.public.view
     def get_leaderboard(self, limit: u256) -> str:
@@ -302,7 +305,8 @@ class Lurna(gl.Contract):
 
     @gl.public.view
     def get_student_certificates(self, student: str) -> str:
-        ids_str = self.student_certs.get(student, "[]")
+        addr = Address(student)
+        ids_str = self.student_certs.get(addr, "[]")
         try:
             ids = json.loads(ids_str)
         except:
@@ -371,7 +375,7 @@ class Lurna(gl.Contract):
         if len(student_answers) != num_q:
             return '{"error":"Answer count mismatch"}'
 
-        student = str(gl.message.sender_address)
+        student = gl.message.sender_address
         total_score = u256(0)
         max_possible = u256(num_q * 100)
 
@@ -455,7 +459,7 @@ class Lurna(gl.Contract):
 
         if passed:
             tier = self._tier_from_grade(grade)
-            cert_key = student + ":" + module_id
+            cert_key = student.as_hex + ":" + module_id
             existing = self.student_module_certs.get(cert_key, "")
             if existing:
                 cert_id = u256(int(existing))
@@ -578,11 +582,12 @@ class Lurna(gl.Contract):
     def set_display_name(self, name: str) -> str:
         if len(name) < 1 or len(name) > 32:
             return json.dumps({"error": "Name must be 1-32 characters"})
-        student = str(gl.message.sender_address)
+        student = gl.message.sender_address
         self.display_names[student] = name
-        return json.dumps({"name": name, "address": student})
+        return json.dumps({"name": name, "address": student.as_hex})
 
     @gl.public.view
     def get_display_name(self, address: str) -> str:
-        return self.display_names.get(address, "")
+        addr = Address(address)
+        return self.display_names.get(addr, "")
 
