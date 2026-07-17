@@ -1,3 +1,4 @@
+import { createClient } from "genlayer-js";
 import { getGenLayerClient, getWriteClient, ensureCorrectNetwork } from "@/lib/genlayer/client";
 import { genlayerConfig } from "@/lib/genlayer/config";
 import { TransactionStatus } from "genlayer-js/types";
@@ -65,6 +66,8 @@ export interface TransactionResult<T = void> {
   data?: T;
   txHash?: string;
   error?: string;
+  errorType?: "EXTERNAL" | "LLM_ERROR" | "CONSENSUS_FAILURE" | "TRANSIENT";
+  retryable?: boolean;
 }
 
 /* ── Helpers ── */
@@ -109,29 +112,58 @@ function normalizeContractResult(val: unknown): unknown {
   return val;
 }
 
+export interface ContractError {
+  error: string;
+  type?: "EXTERNAL" | "LLM_ERROR" | "CONSENSUS_FAILURE" | "TRANSIENT";
+}
+
+function tryParseContractError(msg: string): ContractError | null {
+  try {
+    const parsed = JSON.parse(msg);
+    if (parsed && typeof parsed === "object" && parsed.error) {
+      return parsed as ContractError;
+    }
+  } catch {}
+  return null;
+}
+
+function isTransient(ce: ContractError): boolean {
+  return ce.type === "LLM_ERROR" || ce.type === "CONSENSUS_FAILURE" || ce.type === "TRANSIENT";
+}
+
 /* ── GenLayer Error Parser ── */
 
-function parseGenLayerError(err: unknown): string {
+function parseGenLayerError(err: unknown): { message: string; type?: "EXTERNAL" | "LLM_ERROR" | "CONSENSUS_FAILURE" | "TRANSIENT"; retryable: boolean } {
   const msg = err instanceof Error ? err.message : String(err);
+
+  const ce = tryParseContractError(msg);
+  if (ce) {
+    return {
+      message: ce.error,
+      type: ce.type,
+      retryable: isTransient(ce),
+    };
+  }
+
   if (msg.includes("User denied") || msg.includes("user rejected") || msg.includes("code 4001")) {
-    return "Transaction rejected in wallet";
+    return { message: "Transaction rejected in wallet", retryable: false };
   }
   if (msg.includes("VALIDATORS_TIMEOUT") || msg.includes("validators timeout")) {
-    return "Validators timed out — network may be congested. Try again.";
+    return { message: "Validators timed out — network may be congested. Try again.", retryable: true };
   }
   if (msg.includes("LEADER_TIMEOUT") || msg.includes("leader timeout")) {
-    return "Leader timed out — try again.";
+    return { message: "Leader timed out — try again.", retryable: true };
   }
   if (msg.includes("UNDETERMINED") || msg.includes("undetermined")) {
-    return "Consensus could not be reached. Try again.";
+    return { message: "Consensus could not be reached. Try again.", retryable: true };
   }
   if (msg.includes("insufficient funds") || msg.includes("gas")) {
-    return "Insufficient GEN tokens for gas.";
+    return { message: "Insufficient GEN tokens for gas.", retryable: false };
   }
   if (msg.includes("rate limit") || msg.includes("LimitExceeded")) {
-    return "Rate limited — please wait a moment and try again.";
+    return { message: "Rate limited — please wait a moment and try again.", retryable: true };
   }
-  return msg.slice(0, 200);
+  return { message: msg.slice(0, 200), retryable: false };
 }
 
 /* ── Contract wrapper ── */
@@ -141,13 +173,38 @@ class LurnaContract {
     return genlayerConfig.contracts.Lurna as Address;
   }
 
-  private async read<T>(fn: string, args: unknown[]): Promise<T> {
-    const raw = await getGenLayerClient().readContract({
-      address: this.address,
-      functionName: fn,
-      args: args as [],
+  private readClient: ReturnType<typeof createClient> | null = null;
+
+  constructor() {}
+
+  private getReadClient() {
+    if (this.readClient) return this.readClient;
+    this.readClient = createClient({
+      chain: genlayerConfig.chain,
+      ...(genlayerConfig.rpcUrl ? { rpcUrl: genlayerConfig.rpcUrl } : {}),
     });
-    return normalizeContractResult(raw) as T;
+    return this.readClient;
+  }
+
+  private async read<T>(fn: string, args: unknown[]): Promise<T> {
+    try {
+      const client = this.getReadClient();
+      const raw = await client.readContract({
+        address: this.address,
+        functionName: fn,
+        args: args as [],
+      });
+      if (typeof raw === "string") {
+        try { return JSON.parse(raw) as T; } catch { return raw as T; }
+      }
+      if (raw instanceof Map) {
+        return Object.fromEntries(raw.entries()) as T;
+      }
+      return raw as T;
+    } catch (e) {
+      console.error(`read(${fn}) failed:`, e);
+      throw e;
+    }
   }
 
   private async writeAndWait(fn: string, args: unknown[]): Promise<TransactionResult<{ txHash: string; receipt: Record<string, unknown> }>> {
@@ -208,17 +265,21 @@ class LurnaContract {
 
       const execResultName = (receipt as any).txExecutionResultName;
       if (execResultName && ["FAIL", "VALIDATORS_TIMEOUT", "UNDETERMINED"].includes(execResultName)) {
-        return { success: false, error: parseGenLayerError(new Error(execResultName)) };
+        const parsed = parseGenLayerError(new Error(execResultName));
+        return { success: false, error: parsed.message, errorType: parsed.type, retryable: parsed.retryable };
       }
 
       const consensusError = (receipt as any).consensus_data?.execution_error;
       if (consensusError) {
-        return { success: false, error: `Execution error: ${consensusError}` };
+        const ceStr = typeof consensusError === "string" ? consensusError : JSON.stringify(consensusError);
+        const parsed = parseGenLayerError(new Error(ceStr));
+        return { success: false, error: parsed.message, errorType: parsed.type, retryable: parsed.retryable };
       }
 
       return { success: true, data: { txHash, receipt } };
     } catch (err) {
-      return { success: false, error: parseGenLayerError(err) };
+      const parsed = parseGenLayerError(err);
+      return { success: false, error: parsed.message, errorType: parsed.type, retryable: parsed.retryable };
     }
   }
 
@@ -299,15 +360,36 @@ class LurnaContract {
     questions: string,
     moduleSummary: string,
   ): Promise<TransactionResult<QuizAttempt>> {
-    const countBefore = await this.getTotalAttempts();
+    const MAX_RETRIES = 3;
 
-    const result = await this.writeAndWait("submit_quiz", [
-      moduleId, category, course, answers, questions, moduleSummary,
-    ]);
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      const countBefore = await this.getTotalAttempts();
 
-    if (!result.success) return { success: false, error: result.error || "Unknown error" };
+      const result = await this.writeAndWait("submit_quiz", [
+        moduleId, category, course, answers, questions, moduleSummary,
+      ]);
 
-    const { txHash, receipt } = result.data!;
+      if (result.success) {
+        const { txHash, receipt } = result.data!;
+        return await this._extractAttempt(countBefore, txHash, receipt);
+      }
+
+      if (result.retryable && attempt < MAX_RETRIES - 1) {
+        await new Promise((r) => setTimeout(r, 3000 * (attempt + 1)));
+        continue;
+      }
+
+      return { success: false, error: result.error || "Unknown error", errorType: result.errorType, retryable: result.retryable };
+    }
+
+    return { success: false, error: "Max retries exceeded" };
+  }
+
+  private async _extractAttempt(
+    countBefore: number,
+    txHash: string,
+    receipt: Record<string, unknown>,
+  ): Promise<TransactionResult<QuizAttempt>> {
 
     /* ── Extract attempt from receipt (same data tx explorer uses) ── */
 

@@ -11,4 +11,7 @@ export default defineConfig({
     server: { entry: "server" },
   },
   nitro: { preset: "cloudflare-pages" },
+  vite: {
+    optimizeDeps: { exclude: ["genlayer-js"] },
+  },
 });

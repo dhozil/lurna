@@ -8,8 +8,8 @@ const chainMap = {
   testnet: testnetBradbury,
 };
 
-const BRADBURY_RPC = "https://rpc-bradbury.genlayer.com";
-const BRADBURY_CONTRACT = "0x6292baCD8ADc262aa051dd65F007f61fdbAA0156";
+const DEFAULT_RPC = "https://studio.genlayer.com/api";
+const DEFAULT_CONTRACT = "0x1C63A5Ff844ec5Dd3e269f5ba8a66EDaF25ea146";
 
 function getNetwork(): GenLayerNetwork {
   const v = import.meta.env.VITE_GENLAYER_NETWORK;
@@ -18,7 +18,7 @@ function getNetwork(): GenLayerNetwork {
 }
 
 function getContractAddress(name: string): string {
-  return import.meta.env[`VITE_CONTRACT_${name}`] || BRADBURY_CONTRACT;
+  return import.meta.env[`VITE_CONTRACT_${name}`] || DEFAULT_CONTRACT;
 }
 
 export const genlayerConfig = {
@@ -28,6 +28,6 @@ export const genlayerConfig = {
     Lurna: getContractAddress("LURNA"),
   },
   get rpcUrl(): string {
-    return import.meta.env.VITE_GENLAYER_RPC_URL || BRADBURY_RPC;
+    return import.meta.env.VITE_GENLAYER_RPC_URL || DEFAULT_RPC;
   },
 } as const;

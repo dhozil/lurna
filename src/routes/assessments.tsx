@@ -272,23 +272,7 @@ function AssessView({ module, categoryLabel, categoryTint, trackTitle }: { modul
 
   const hasEvals = evaluations.length === questions.length;
 
-  /* ── Save to localStorage so dashboard sees accepted tx ── */
-  useEffect(() => {
-    if (!result) return;
-    try {
-      const key = "lurna_local_scores_" + walletAddress;
-      const raw = localStorage.getItem(key);
-      const map: Record<string, any> = raw ? JSON.parse(raw) : {};
-      const pct = Math.round((result.score / result.total) * 100);
-      map[module.id] = {
-        module_id: module.id, category: categoryLabel, course: module.title,
-        score: result.score, max_score: result.total, percentage: pct,
-        passed: result.grade !== "F", grade: result.grade, earned_at: Date.now(),
-        pct,
-      };
-      localStorage.setItem(key, JSON.stringify(map));
-    } catch {}
-  }, [result, module.id]);
+  /* ── No localStorage — StudioNet finalizes fast, dashboard reads chain directly ── */
 
   useEffect(() => {
     if (!chainResult?.eval_start) return;
@@ -315,19 +299,6 @@ function AssessView({ module, categoryLabel, categoryTint, trackTitle }: { modul
   const handleSubmit = useCallback(() => {
     if (!walletAddress || submitting) return;
     setSubmitting(true);
-    /* ── Save to localStorage immediately (optimistic), before finalization ── */
-    try {
-      const key = "lurna_local_scores_" + walletAddress;
-      const raw = localStorage.getItem(key);
-      const map: Record<string, any> = raw ? JSON.parse(raw) : {};
-      map[module.id] = {
-        module_id: module.id, category: categoryLabel, course: module.title,
-        score: 0, max_score: questions.length * 100, percentage: 0,
-        passed: false, grade: "?", earned_at: Date.now(),
-        pct: 0, pending: true,
-      };
-      localStorage.setItem(key, JSON.stringify(map));
-    } catch {}
     submitQuiz.mutate(
       {
         moduleId: module.id,
@@ -421,10 +392,13 @@ function AssessView({ module, categoryLabel, categoryTint, trackTitle }: { modul
   /* ── Error ── */
 
   if (submitQuiz.isError) {
+    const err = submitQuiz.error as any;
+    const isRetryable = err?.retryable;
     return (
       <div className="mt-6 rounded-3xl border border-red-500/30 bg-card p-16 text-center shadow-card">
         <h2 className="text-xl font-extrabold text-red-600">Submission failed</h2>
-        <p className="mt-2 text-sm text-muted-foreground">{(submitQuiz.error as Error)?.message || "Unknown error"}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{err?.message || "Unknown error"}</p>
+        {isRetryable && <p className="mt-1 text-xs text-amber-600 font-medium">This error is temporary — try again.</p>}
         <button onClick={resetQuiz} className="mt-6 rounded-full bg-gradient-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground cursor-pointer">
           Try Again
         </button>

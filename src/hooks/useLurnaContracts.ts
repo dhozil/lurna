@@ -1,6 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useWallet } from "@/lib/genlayer/WalletContext";
-import { lurna, type LeaderboardEntry, type BestScore, type CertificateMetadata, type QuizAttempt, type TransactionResult } from "@/lib/contracts/Lurna";
+import { lurna, type LeaderboardEntry, type BestScore, type CertificateMetadata, type QuizAttempt, type TransactionResult, type ContractError } from "@/lib/contracts/Lurna";
+
+export class ContractErr extends Error {
+  type?: ContractError["type"];
+  retryable?: boolean;
+  constructor(msg: string, type?: ContractError["type"], retryable?: boolean) {
+    super(msg);
+    this.name = "ContractErr";
+    this.type = type;
+    this.retryable = retryable;
+  }
+}
 
 export function useWalletConnection() {
   const wallet = useWallet();
@@ -13,8 +24,18 @@ export function useWalletConnection() {
 export function useLeaderboard(limit = 50) {
   return useQuery<LeaderboardEntry[]>({
     queryKey: ["lurna", "leaderboard", limit],
-    queryFn: () => lurna.getLeaderboard(limit),
+    queryFn: async () => {
+      const result = await Promise.race([
+        lurna.getLeaderboard(limit),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Leaderboard query timed out")), 15_000)
+        ),
+      ]);
+      return result;
+    },
     staleTime: 30_000,
+    retry: 1,
+    retryDelay: 2000,
   });
 }
 
@@ -93,7 +114,7 @@ export function useSubmitQuiz() {
       questions: string;
       moduleSummary: string;
     }): Promise<QuizAttempt> => {
-      if (!wallet.address) throw new Error("Wallet not connected");
+      if (!wallet.address) throw new ContractErr("Wallet not connected");
       const result = await lurna.submitQuiz(
         params.moduleId,
         params.category,
@@ -102,7 +123,7 @@ export function useSubmitQuiz() {
         params.questions,
         params.moduleSummary,
       );
-      if (!result.success) throw new Error(result.error);
+      if (!result.success) throw new ContractErr(result.error || "Unknown error", result.errorType, result.retryable);
       return result.data!;
     },
     onSuccess: () => {

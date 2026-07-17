@@ -28,41 +28,11 @@ function Dashboard() {
     setLastId(getLastModule());
   }, []);
 
-  /* ── Migrate old per-domain key to wallet-scoped key ── */
-  useEffect(() => {
-    if (!address) return;
-    const oldKey = "lurna_local_scores";
-    const newKey = oldKey + "_" + address;
-    const oldRaw = localStorage.getItem(oldKey);
-    if (oldRaw) {
-      const newRaw = localStorage.getItem(newKey);
-      if (!newRaw) {
-        localStorage.setItem(newKey, oldRaw);
-      }
-      localStorage.removeItem(oldKey);
-    }
-  }, [address]);
-
-  /* ── Merge local (accepted-but-not-finalized) + chain data ── */
+  /* ── Chain scores only (no localStorage merge — StudioNet finalizes fast) ── */
   const bestArr = useMemo(() => {
-    const map: Record<string, any> = {};
-    // 1) local scores from accepted submissions
-    try {
-      const raw = address ? localStorage.getItem("lurna_local_scores_" + address) : null;
-      if (raw) {
-        for (const [mid, d] of Object.entries(JSON.parse(raw))) {
-          if (d && typeof d === "object") map[mid] = { moduleId: mid, ...(d as any) };
-        }
-      }
-    } catch {}
-    // 2) chain scores (finalized) — overwrites local
-    if (chainScores) {
-      for (const [mid, d] of Object.entries(chainScores)) {
-        map[mid] = { moduleId: mid, ...(d as any) };
-      }
-    }
-    return Object.values(map);
-  }, [chainScores, address]);
+    if (!chainScores) return [];
+    return Object.entries(chainScores).map(([mid, d]) => ({ moduleId: mid, ...(d as any) }));
+  }, [chainScores]);
   const lastMod = lastId ? getModuleById(lastId) : null;
 
   const completedCount = bestArr.length;

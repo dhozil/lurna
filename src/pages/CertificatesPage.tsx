@@ -42,38 +42,10 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
 
   const { data: chainCerts, isLoading: certsLoading, isError: certsError } = useStudentCertificates(isConnected ? walletAddress : null);
 
-  /* ── Merge local (accepted) + chain (finalized) certs ── */
+  /* ── Chain certs only (no localStorage merge) ── */
   const allCerts = useMemo(() => {
-    const map: Record<string, any> = {};
-    try {
-      const raw = walletAddress ? localStorage.getItem("lurna_local_scores_" + walletAddress) : null;
-      if (raw) {
-        for (const d of Object.values(JSON.parse(raw))) {
-          const entry = d as Record<string, any>;
-          if (entry && typeof entry === "object" && entry.grade !== "F") {
-            const course = entry.course || entry.module_id || "";
-            map[course] = {
-              course,
-              category: entry.category || "",
-              score: entry.score,
-              max_score: entry.max_score,
-              percentage: entry.percentage ?? Math.round((entry.score / (entry.max_score || 1)) * 100),
-              grade: entry.grade,
-              timestamp: entry.earned_at || Date.now(),
-              attempt_id: 0,
-              student: "",
-            };
-          }
-        }
-      }
-    } catch {}
-    if (chainCerts) {
-      for (const c of chainCerts) {
-        map[c.course] = { ...c };
-      }
-    }
-    return Object.values(map);
-  }, [chainCerts, walletAddress]);
+    return chainCerts || [];
+  }, [chainCerts]);
 
   /* ── Certificate preview from quiz result ── */
   if (certData) {

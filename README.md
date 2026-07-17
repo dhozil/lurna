@@ -36,15 +36,13 @@
 
 ## 📜 Smart Contract
 
-Deployed on **GenLayer Bradbury** testnet.
+Deployed on **GenLayer StudioNet** testnet.
 
 | Item | Detail |
 |------|--------|
-| **Network** | Bradbury |
-| **Chain ID** | `4221` (`0x107d`) |
-| **RPC** | `https://rpc-bradbury.genlayer.com` |
-| **Explorer** | [explorer-bradbury.genlayer.com](https://explorer-bradbury.genlayer.com) |
-| **Contract** | `0x6292baCD8ADc262aa051dd65F007f61fdbAA0156` |
+| **Network** | StudioNet |
+| **RPC** | `https://studio.genlayer.com/api` |
+| **Contract** | `0x1C63A5Ff844ec5Dd3e269f5ba8a66EDaF25ea146` |
 | **Source** | `contracts/Lurna.py` |
 
 A single unified Python contract handles:
@@ -54,6 +52,7 @@ A single unified Python contract handles:
 - Leaderboard ranking
 - NFT certificate minting and verification
 - Display name registration
+- Error taxonomy: `EXTERNAL` / `LLM_ERROR` / `CONSENSUS_FAILURE` / `TRANSIENT`
 
 ---
 
@@ -185,7 +184,7 @@ Validator: independently re-runs exec_prompt (different AI model) → cross-vali
         ↓
 Consensus reached → Scores recorded → Best score updated → Certificate minted if ≥70%
         ↓
-Receipt parsed on frontend → Attempt result displayed
+Receipt parsed → Poll chain view → Dashboard reads finalized data directly (no localStorage fallback)
 ```
 
 ### Smart Contract Functions
@@ -211,7 +210,7 @@ Receipt parsed on frontend → Attempt result displayed
 
 | Function | Parameters | Description |
 |----------|-----------|-------------|
-| `submit_quiz(module_id, category, course, answers, module_summary)` | Module + answers (JSON) | Submit essay for AI Consensus evaluation; sender bound via `gl.message.sender_address` |
+| `submit_quiz(module_id, category, course, answers, questions, module_summary)` | Module + pipe-delimited answers/questions | Submit essay for AI Consensus evaluation; sender bound via `gl.message.sender_address`. Returns `{"error":"...","type":"..."}` on failure |
 | `set_display_name(name)` | Name | Register on-chain display name; sender bound via `gl.message.sender_address` |
 
 ### Anti-Cheat: Hash-Verified Questions
@@ -219,12 +218,12 @@ Receipt parsed on frontend → Attempt result displayed
 The full curriculum (154 modules × 3 essay questions) is too large to store on-chain (~250KB). Instead, Lurna stores only a **rolling hash** of each module's questions (~5KB):
 
 ```
-Module "what-is-genlayer" → hash("["What is GenLayer?","How does it work?","Why does it matter?"]") = "2140921743"
+Module "ai-intro" → hash(q1 + "|||" + q2 + "|||" + q3) = "4054525318"
 ```
 
-When a student submits, the caller **must send both answers and questions**. The contract recomputes `_checksum(questions)` and rejects the submission if it doesn't match the stored hash. This prevents anyone from fabricating easier questions — the hash is immutable on-chain, and a mismatch returns `"Question hash mismatch"` before any AI evaluation runs.
+When a student submits, the caller **must send both answers and questions** (as pipe-delimited strings). The contract parses with `json.loads` first, falls back to `split("|||")`, then recomputes `_checksum("|||".join(questions))` and rejects if it doesn't match the stored hash. This prevents anyone from fabricating easier questions — the hash is immutable on-chain.
 
-The `_checksum` function uses a polynomial rolling hash (`h = (h × 31 + ord(c)) & 0xFFFFFFFF`) — deterministic, no imports, and identical between the JS hash generator and the Python contract.
+The `_checksum` function uses a polynomial rolling hash (`h = (h × 31 + ord(c)) & 0xFFFFFFFF`) — deterministic, no imports, and identical between the JS hash generator (`scripts/gen-hashes.cjs`) and the Python contract.
 
 ### Consensus Pattern
 
