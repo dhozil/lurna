@@ -1,20 +1,11 @@
-import { localnet, studionet, testnetBradbury } from "genlayer-js/chains";
-
-export type GenLayerNetwork = "localnet" | "studionet" | "testnet";
-
-const chainMap = {
-  localnet,
-  studionet,
-  testnet: testnetBradbury,
-};
+import { studionet } from "genlayer-js/chains";
 
 const DEFAULT_RPC = "https://studio.genlayer.com/api";
 const DEFAULT_CONTRACT = "0x1C63A5Ff844ec5Dd3e269f5ba8a66EDaF25ea146";
 
-function getNetwork(): GenLayerNetwork {
+function getNetworkName(): string {
   const v = import.meta.env.VITE_GENLAYER_NETWORK;
-  if (v === "localnet" || v === "studionet" || v === "testnet") return v;
-  return "testnet";
+  return v || "studionet";
 }
 
 function getContractAddress(name: string): string {
@@ -22,8 +13,8 @@ function getContractAddress(name: string): string {
 }
 
 export const genlayerConfig = {
-  network: getNetwork(),
-  chain: chainMap[getNetwork()],
+  network: getNetworkName(),
+  chain: studionet,
   contracts: {
     Lurna: getContractAddress("LURNA"),
   },
