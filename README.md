@@ -60,12 +60,13 @@ A single unified Python contract handles:
 
 | Feature | Description |
 |---------|-------------|
-| **AI Consensus Grading** | Each essay answer is evaluated by `exec_prompt` with multi-agent validation. Leader runs AI evaluation; validators independently re-run `exec_prompt` (different AI model) and cross-validate scores for consistency. |
+| **AI Consensus Grading** | Each essay answer is evaluated by `gl.vm.run_nondet_unsafe`. Leader runs AI evaluation via `exec_prompt(prompt, response_format="json")`; validators independently re-run with their own AI model and cross-validate scores for ±12 consistency. |
 | **On-Chain Certificates** | NFT-style credentials minted for every passing essay (score ≥ 70%). Stored permanently in `TreeMap[u256, str]` with student, course, category, score, grade, tier, and timestamp. |
 | **Leaderboard** | Aggregates per-module best scores across all students. Sorted by total percentage. Displays student address, handle (display name), modules passed, certificates earned, and highest grade. |
-| **Wallet Authentication** | EIP-1193 compatible — MetaMask, Rabby, Coinbase Wallet, Brave Wallet, Trust Wallet, and generic browser wallets. Wallet selection modal on "Sign In". |
-| **Display Names** | On-chain handle registration. Saved to contract via `set_display_name`, cached in localStorage for fast dashboard loading. |
+| **Wallet Authentication** | EIP-1193 compatible — MetaMask, Rabby, etc. Wallet selection modal on "Sign In". Sender bound via `gl.message.sender_address` — no `student` parameter accepted. |
+| **Display Names** | On-chain handle registration via `set_display_name`. Sender bound — no address parameter. |
 | **Essay-Only** | All 154 modules use scenario-based essay questions (3 per module). No MCQ, no answer key — AI grades purely on depth, clarity, critical thinking, originality, and detail. |
+| **Anti-Manipulation** | Questions verified by on-chain rolling hash — caller cannot fabricate easier questions. Consensus failures (`total_score == 0`) excluded from state — no certificates or leaderboard entries manufactured. |
 
 ---
 
@@ -78,7 +79,7 @@ A single unified Python contract handles:
 │  Tailwind CSS · Shadcn UI · Lucide Icons             │
 ├─────────────────────────────────────────────────────┤
 │                    Blockchain                         │
-│  GenLayer (Bradbury testnet)                         │
+│  GenLayer (StudioNet)                                 │
 │  genlayer-js SDK · viem                              │
 ├─────────────────────────────────────────────────────┤
 │                    Smart Contract                     │
@@ -231,10 +232,11 @@ Lurna uses `gl.vm.run_nondet_unsafe` — the leader evaluates essays via AI, and
 
 ```python
 def leader_fn() -> list:
-    raw = gl.nondet.exec_prompt(prompt)
+    raw = gl.nondet.exec_prompt(prompt, response_format="json")
     # AI returns JSON array of {"score": N, "reasoning": "..."}
+    # response_format="json" returns parsed list/dict directly
     try:
-        return json.loads(raw_clean)
+        return json.loads(raw_clean) if isinstance(raw_clean, str) else raw_clean
     except:
         # Fallback: regex for "score: N"
         scores = re.findall(r"score[\":\s]+(\d+)", raw, re.I)
@@ -246,11 +248,11 @@ def validator_fn(leader_res) -> bool:
     if len(leader_data) != num_q: return False
     mine = leader_fn()  # Re-run with different AI model
     if len(mine) != num_q: return False
-    # Both returned all zeros = agree on failure
+    # Both returned all zeros = agree on failure → excluded from state
     if all(s == 0 for s in leader_data) and all(s == 0 for s in mine):
         return True
     for i in range(num_q):
-        if abs(leader_data[i]["score"] - mine[i]["score"]) > 30:
+        if abs(leader_data[i]["score"] - mine[i]["score"]) > 12:
             return False
     return True
 
@@ -278,8 +280,8 @@ Only passing scores (≥ 70%) result in on-chain certificate minting.
 
 - Node.js ≥ 18
 - npm ≥ 9
-- MetaMask (or any EIP-1193 wallet) with Bradbury testnet configured
-- GEN test tokens for transaction fees (faucet at [GenLayer Discord](https://discord.gg/genlayer))
+- MetaMask (or any EIP-1193 wallet) with StudioNet configured
+- No gas fees required on StudioNet
 
 ### Installation
 
@@ -318,8 +320,8 @@ npm run dev
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `VITE_GENLAYER_NETWORK` | GenLayer network name | `testnet` |
-| `VITE_GENLAYER_RPC_URL` | GenLayer RPC endpoint | `https://rpc-bradbury.genlayer.com` |
+| `VITE_GENLAYER_NETWORK` | GenLayer network name | `studionet` |
+| `VITE_GENLAYER_RPC_URL` | GenLayer RPC endpoint | `https://studio.genlayer.com/api` |
 | `VITE_CONTRACT_LURNA` | Deployed contract address | `0x...` |
 
 ### Key Frontend Contracts API
@@ -331,9 +333,9 @@ const certs = await lurna.getStudentCertificates(address);
 const scores = await lurna.getStudentBestScores(address);
 const leaderboard = await lurna.getLeaderboard(10);
 
-// Write
-const result = await lurna.setDisplayName(address, "MyName");
-const quizResult = await lurna.submitQuiz(moduleId, category, course, answers, moduleSummary);
+// Write (sender bound automatically via connected wallet)
+const result = await lurna.setDisplayName("MyName");
+const quizResult = await lurna.submitQuiz(moduleId, category, course, answers, questions, moduleSummary);
 ```
 
 ---
@@ -344,14 +346,14 @@ const quizResult = await lurna.submitQuiz(moduleId, category, course, answers, m
 
 1. Open [GenLayer Studio](https://studio.genlayer.com)
 2. Paste contents of `contracts/Lurna.py`
-3. Deploy to Bradbury testnet
+3. Deploy to StudioNet
 4. Copy deployed contract address to `.env`
 
 ### Deploy Frontend
 
 ```bash
 npm run build
-# Deploy the .output/ directory to your hosting provider
+# Deploy the dist/ directory to Cloudflare Pages or your hosting provider
 ```
 
 ---
