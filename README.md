@@ -4,7 +4,7 @@
 </h1>
 
 <p align="center">
-  <b>Lurna is a decentralized learning platform on GenLayer that grades essays through multi-agent AI consensus. Each submission is evaluated by multiple AI validators (GPT, Claude, Llama, etc.) running inside GenLayer smart contracts — if supermajority agrees, the score is accepted on-chain.</b><br>
+  <b>Lurna is a decentralized learning platform on GenLayer that grades essays through multi-agent AI consensus. Each submission is evaluated by multiple AI validators (GPT, Claude, Llama, etc.) running inside GenLayer intelligent contracts — if supermajority agrees, the score is accepted on-chain.</b><br>
   AI-graded essays · On-chain NFT certificates · GenLayer
 </p>
 
@@ -21,7 +21,7 @@
 
 ## 📋 Table of Contents
 
-- [Smart Contract](#-smart-contract)
+- [Intelligent contract](#-intelligent-contract)
 - [Features](#-features)
 - [Tech Stack](#-tech-stack)
 - [Project Structure](#-project-structure)
@@ -34,7 +34,7 @@
 
 ---
 
-## 📜 Smart Contract
+## 📜 Intelligent Contract
 
 Deployed on **GenLayer StudioNet** testnet.
 
