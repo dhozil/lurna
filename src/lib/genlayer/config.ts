@@ -1,7 +1,7 @@
 import { studionet } from "genlayer-js/chains";
 
 const DEFAULT_RPC = "https://studio.genlayer.com/api";
-const DEFAULT_CONTRACT = "0x1C63A5Ff844ec5Dd3e269f5ba8a66EDaF25ea146";
+const DEFAULT_CONTRACT = "0xD101ef58775FF960fFF3aE38E52fD16a5575c923";
 
 function getNetworkName(): string {
   const v = import.meta.env.VITE_GENLAYER_NETWORK;

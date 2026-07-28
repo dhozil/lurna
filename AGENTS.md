@@ -58,9 +58,13 @@ Build a complete GenLayer-powered learning platform (Lurna) with AI-consensus es
 - **Vite config**: uses `@lovable.dev/vite-tanstack-config` wrapper; additional Vite config passed via `vite: { ... }` key
 - **Debug logs cleaned up** — removed `=== GENLAYER REQ/RES ===` and `testRead()` from production code
 - **Dead code removed** — `getSchema()`, `testRead()`, constructor side-effects
+- **Fail-closed grading**: removed all fallback passing scores (`[{"score": 75, "reasoning": "Auto-assigned"}]`) from `leader_fn` and `_evaluate_all`. Both now raise `RuntimeError` on failure, propagating to `submit_quiz` which returns `TRANSIENT` error before any state writes.
+- **Module-specific grading prompt**: `module_id` passed to `_evaluate_all`, included in prompt so AI knows which module it's grading. Rubric criteria (depth, clarity, critical thinking, originality, detail) embedded in prompt.
+- **Module_id in certificate metadata**: certificate records now include `module_id` field alongside existing student, category, course, score, grade, tier, attempt_id.
+- **Failure path tests**: `contracts/test_failures.py` covers EXTERNAL (unknown module, hash mismatch, count mismatch, empty), LLM_ERROR, TRANSIENT, and CONSENSUS_FAILURE paths with assertions.
 
 ### In Progress
-- Test full submit → dashboard → certificate flow end-to-end
+- Deploy updated contract to StudioNet (waiting for GenLayer project resubmission to open)
 
 ### Known Issues
 - `dist/index.js` has the address encoding fix (auto-detect hex addresses); this file is served directly by Vite (not pre-bundled)
@@ -71,17 +75,17 @@ Build a complete GenLayer-powered learning platform (Lurna) with AI-consensus es
 - **`CalldataAddress` internally available** — imported from chunk file, used inside `encodeImpl` for Special_ADDR encoding
 - **Vite caching fix**: excluded genlayer-js from `optimizeDeps` so source modifications are served directly
 - **Contract bug**: `"student": student` (raw Address) vs `"student": str(student)` — raw Address causes `json.dumps` failure
+- **Fail-closed over fallback scores**: Instead of substituting `score: 75` when AI/consensus fails, `leader_fn` raises `RuntimeError`, causing full revert/TRANSIENT error with zero state writes.
 
 ## Next Steps
-1. Re-deploy contract with `str(student)` fix in `get_leaderboard`
-2. Verify all view functions work end-to-end
-3. Test full submit → wait for consensus → check dashboard/certs/leaderboard flow
-4. Deploy Cloudflare frontend after full flow verification
-5. Clean up test data (old submissions from previous contract)
+1. Wait for GenLayer project contribution type to reopen
+2. Deploy updated contract (`contracts/Lurna.py` with fail-closed + module_id binding)
+3. Resubmit with links to source (`contracts/Lurna.py`), test file (`contracts/test_failures.py`), and deployed contract address
+4. Verify all failure paths end-to-end on StudioNet
 
 ## Critical Context
 - **RPC endpoint**: `https://studio.genlayer.com/api`
-- **Contract**: `0x1C63A5Ff844ec5Dd3e269f5ba8a66EDaF25ea146` — deployed on StudioNet after `str(student)` fix
+- **Contract**: `0xD101ef58775FF960fFF3aE38E52fD16a5575c923` — deployed on StudioNet after `str(student)` fix
 - **All view calls WORK**: no-arg, address-param, int-param
 - **Address encoding fix**: Inserted at `case "string"` in `encodeImpl` (`dist/index.js`). Regex `/^0x[0-9a-fA-F]{40}$/` detects hex addresses, converts to 20-byte Uint8Array, encodes as `SPECIAL_ADDR` (0x18 + 20 raw bytes)
 - **genlayer-js excluded from pre-bundling** via `vite.config.ts` → `vite: { optimizeDeps: { exclude: ['genlayer-js'] } }`
@@ -92,9 +96,9 @@ Build a complete GenLayer-powered learning platform (Lurna) with AI-consensus es
 ## Relevant Files
 - `contracts/Lurna.py` — 648 lines, all platform logic. Line 280 fixed: `"student": str(student)`
 - `src/lib/contracts/Lurna.ts` — LurnaContract class with `read()` wrapping genlayer-js `readContract`; all public API methods
-- `src/lib/genlayer/config.ts` — `DEFAULT_CONTRACT = "0x1C63A5Ff844ec5Dd3e269f5ba8a66EDaF25ea146"`
+- `src/lib/genlayer/config.ts` — `DEFAULT_CONTRACT = "0xD101ef58775FF960fFF3aE38E52fD16a5575c923"`
 - `src/hooks/useLurnaContracts.ts` — TanStack Query hooks
-- `.env` / `.env.production` / `.env.example` — `VITE_CONTRACT_LURNA=0x1C63A5Ff844ec5Dd3e269f5ba8a66EDaF25ea146`
+- `.env` / `.env.production` / `.env.example` — `VITE_CONTRACT_LURNA=0xD101ef58775FF960fFF3aE38E52fD16a5575c923`
 - `node_modules/genlayer-js/dist/index.js` — modified `encodeImpl` at `case "string"` for address encoding
 - `vite.config.ts` — `vite: { optimizeDeps: { exclude: ['genlayer-js'] } }`
 

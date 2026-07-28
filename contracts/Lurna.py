@@ -377,7 +377,7 @@ class Lurna(gl.Contract):
         max_possible = u256(num_q * 100)
 
         try:
-            scores_raw = self._evaluate_all(module_summary, qs, student_answers, num_q)
+            scores_raw = self._evaluate_all(module_id, module_summary, qs, student_answers, num_q)
             scores_data = json.loads(scores_raw)
             n = len(scores_data)
             if n > 0 and n == num_q:
@@ -469,6 +469,7 @@ class Lurna(gl.Contract):
                 self.student_certs[student] = json.dumps(cert_ids)
             meta = json.dumps({
                 "student": str(student),
+                "module_id": module_id,
                 "category": category,
                 "course": course,
                 "score": int(total_score),
@@ -482,8 +483,8 @@ class Lurna(gl.Contract):
 
         return result
 
-    def _evaluate_all(self, summary: str, questions, student_answers, num_q: int) -> str:
-        parts = [f"Grade {num_q} essays 0-100.", f"Module: {summary}"]
+    def _evaluate_all(self, module_id: str, summary: str, questions, student_answers, num_q: int) -> str:
+        parts = [f"Grade {num_q} essays for module '{module_id}'.", f"Module context: {summary}", "Evaluate depth, clarity, critical thinking, originality, and detail."]
         for i in range(num_q):
             sa = str(student_answers[i]).strip() if i < len(student_answers) else ""
             parts.append(f"Q{i+1}: {str(questions[i])}\nA: {'(no answer)' if not sa else sa}")
@@ -577,7 +578,7 @@ class Lurna(gl.Contract):
                     return parsed
             except:
                 pass
-            return [{"score": 75, "reasoning": "Auto-assigned"} for _ in range(num_q)]
+            raise RuntimeError("AI evaluation failed — no model returned valid results")
 
         def validator_fn(leader_res) -> bool:
             if not isinstance(leader_res, gl.vm.Return):
@@ -630,7 +631,7 @@ class Lurna(gl.Contract):
         except:
             pass
 
-        return json.dumps([{"score": 75, "reasoning": "Auto-assigned"} for _ in range(num_q)])
+        raise RuntimeError("Consensus evaluation failed — no agreement reached or AI unavailable")
 
     # ───────── display name ─────────
 

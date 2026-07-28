@@ -50,6 +50,7 @@ export interface LeaderboardEntry {
 
 export interface CertificateMetadata {
   student: string;
+  module_id: string;
   category: string;
   course: string;
   score: number;

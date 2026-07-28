@@ -42,7 +42,7 @@ Deployed on **GenLayer StudioNet** testnet.
 |------|--------|
 | **Network** | StudioNet |
 | **RPC** | `https://studio.genlayer.com/api` |
-| **Contract** | `0x1C63A5Ff844ec5Dd3e269f5ba8a66EDaF25ea146` |
+| **Contract** | `0xD101ef58775FF960fFF3aE38E52fD16a5575c923` |
 | **Source** | `contracts/Lurna.py` |
 
 A single unified Python contract handles:
