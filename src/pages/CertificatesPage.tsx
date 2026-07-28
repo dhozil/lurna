@@ -2,7 +2,7 @@ import { SiteShell, PageHeader } from "@/components/site/SiteShell";
 import { ShieldCheck, Search, Award, Trophy, Star, Sparkles, ArrowRight, Check, Copy, Wallet } from "lucide-react";
 import { useState, useMemo } from "react";
 import certificate3d from "@/assets/certificate-3d.png";
-import { useWalletConnection, useStudentCertificates } from "@/hooks/useLurnaContracts";
+import { useWalletConnection, useStudentCertificates, useDisplayName } from "@/hooks/useLurnaContracts";
 
 interface CertSearch {
   module?: string;
@@ -41,6 +41,7 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
   };
 
   const { data: chainCerts, isLoading: certsLoading, isError: certsError } = useStudentCertificates(isConnected ? walletAddress : null);
+  const { data: displayName } = useDisplayName(isConnected ? walletAddress : null);
 
   /* ── Chain certs only (no localStorage merge) ── */
   const allCerts = useMemo(() => {
@@ -181,7 +182,7 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
                   ? typeof ts === "number"
                     ? new Date(ts * 1000).toLocaleDateString()
                     : String(ts)
-                  : "—";
+                  : "2026";
                 return (
                   <div
                     key={cert.attempt_id || idx}
@@ -224,7 +225,7 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
                         </div>
                         <div className="flex justify-between">
                           <span>Student</span>
-                          <span className="font-mono text-foreground">{cert.student?.slice(0, 6)}...{cert.student?.slice(-4)}</span>
+                          <span className="font-medium text-foreground">{displayName || (cert.student?.slice(0, 6) + "..." + cert.student?.slice(-4))}</span>
                         </div>
                       </div>
                     </div>

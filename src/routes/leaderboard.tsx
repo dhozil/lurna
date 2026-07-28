@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteShell } from "@/components/site/SiteShell";
 import { ArrowRight, Sparkles, Award, BrainCircuit, Medal, TrendingUp, Crown, Trophy, Wallet } from "lucide-react";
 import trophyImg from "@/assets/icon-trophy.png";
-import { useLeaderboard, useWalletConnection } from "@/hooks/useLurnaContracts";
+import { useLeaderboard, useWalletConnection, useDisplayName } from "@/hooks/useLurnaContracts";
 
 export const Route = createFileRoute("/leaderboard")({
   head: () => ({
@@ -18,6 +18,7 @@ export const Route = createFileRoute("/leaderboard")({
 
 function LeaderboardPage() {
   const { address: walletAddress, isConnected, connect, isConnecting } = useWalletConnection();
+  const { data: displayName } = useDisplayName(isConnected ? walletAddress : null);
   const { data: leaderboard, isLoading, isError } = useLeaderboard(50);
   const entries = leaderboard ?? [];
 
@@ -59,7 +60,7 @@ function LeaderboardPage() {
           {isConnected ? (
             <span className="inline-flex items-center gap-2 rounded-full border border-green-500/30 bg-green-500/10 px-4 py-2 text-xs font-semibold text-green-700 shadow-sm">
               <span className="grid h-5 w-5 place-items-center rounded-full bg-green-600 text-white"><Wallet className="h-3 w-3" /></span>
-              {walletAddress!.slice(0, 6)}...{walletAddress!.slice(-4)}
+              {displayName || (walletAddress!.slice(0, 6) + "..." + walletAddress!.slice(-4))}
             </span>
           ) : (
             <button onClick={connect} disabled={isConnecting}
