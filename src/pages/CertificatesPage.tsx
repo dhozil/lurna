@@ -1,5 +1,5 @@
 import { SiteShell, PageHeader } from "@/components/site/SiteShell";
-import { ShieldCheck, Search, Award, Trophy, Star, Sparkles, ArrowRight, Check, Copy, Wallet } from "lucide-react";
+import { Award, Trophy, Star, Sparkles, ArrowRight, Check, Copy, Wallet } from "lucide-react";
 import { useState, useMemo } from "react";
 import certificate3d from "@/assets/certificate-3d.png";
 import { useWalletConnection, useStudentCertificates, useDisplayName } from "@/hooks/useLurnaContracts";
@@ -120,7 +120,7 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
           {isConnected ? (
             <span className="inline-flex items-center gap-2 rounded-full border border-green-500/30 bg-green-500/10 px-4 py-2 text-xs font-semibold text-green-700 shadow-sm">
               <span className="grid h-5 w-5 place-items-center rounded-full bg-green-600 text-white"><Wallet className="h-3 w-3" /></span>
-              {walletAddress!.slice(0, 6)}...{walletAddress!.slice(-4)}
+              {displayName || (walletAddress!.slice(0, 6) + "..." + walletAddress!.slice(-4))}
             </span>
           ) : (
             <button onClick={connect} disabled={isConnecting}
@@ -277,24 +277,7 @@ export default function CertificatesPage({ certSearch }: { certSearch: CertSearc
           ))}
         </div>
 
-        {/* Verify section */}
-        <div className="mt-16 rounded-3xl border border-border/60 bg-gradient-to-br from-primary-soft to-[var(--lavender)] p-8 md:p-10">
-          <h2 className="text-2xl font-extrabold tracking-tight md:text-3xl">Verify any credential</h2>
-          <p className="mt-2 max-w-2xl text-sm text-foreground/70">Paste a certificate hash, wallet address, or Lurna handle to verify authenticity instantly.</p>
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="0x… or @username"
-                className="w-full rounded-full border border-border bg-card py-3 pl-11 pr-4 text-sm shadow-card outline-none focus:border-primary"
-              />
-            </div>
-            <button className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-soft cursor-pointer hover:scale-[1.02]">
-              <ShieldCheck className="h-4 w-4" /> Verify
-            </button>
-          </div>
-        </div>
+
       </section>
     </SiteShell>
   );
